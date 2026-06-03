@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>markdown.hanif.app — render markdown, bagikan link</title>
+<meta name="description" content="Tulis atau paste markdown, render dengan tema, bagikan lewat link pendek.">
+<link rel="stylesheet" href="/hljs/github.min.css" id="hljs-theme">
+<link rel="stylesheet" href="/view.css">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">✎ markdown<span>.hanif.app</span></div>
+  <div class="controls">
+    <label class="field">
+      <span>Tema</span>
+      <select id="theme"></select>
+    </label>
+    <button id="copyMd" class="btn ghost" type="button">Copy MD</button>
+    <button id="share" class="btn primary" type="button">Share →</button>
+  </div>
+</header>
+
+<main class="split">
+  <section class="pane editor-pane">
+    <textarea id="editor" spellcheck="false" placeholder="# Halo&#10;&#10;Tulis **markdown** di sini..."></textarea>
+  </section>
+  <section class="pane preview-pane" id="previewWrap">
+    <article class="doc" id="preview"></article>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <h3>Link siap dibagikan</h3>
+    <div class="link-row">
+      <input id="shareUrl" type="text" readonly>
+      <button id="copyUrl" class="btn primary" type="button">Copy</button>
+    </div>
+    <div class="modal-actions">
+      <a id="openLink" class="btn ghost" target="_blank" rel="noopener">Buka</a>
+      <button id="closeModal" class="btn ghost" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

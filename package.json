@@ -1,0 +1,26 @@
+{
+  "name": "markdown-hanif-app",
+  "version": "1.0.0",
+  "description": "markdown.hanif.app — Render file markdown dengan tema, link yang dapat dibagikan.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "dompurify": "^3.2.4",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "highlight.js": "^11.11.1",
+    "jsdom": "^26.0.0",
+    "marked": "^15.0.7",
+    "marked-highlight": "^2.2.1",
+    "nanoid": "^5.1.5"
+  }
+}
