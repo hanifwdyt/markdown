@@ -286,7 +286,7 @@ function viewPage({ title, theme, contentHtml }) {
 ${contentHtml}
 </main>
 <footer class="doc-footer">
-  <a href="/">✎ markdown.hanif.app</a>
+  <a href="/"><svg class="docmark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6.5 3h7L18 7.5V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v4.5h4.5"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/></svg> markdown.hanif.app</a>
 </footer>
 <script src="/mermaid-run.js" defer></script>
 </body>

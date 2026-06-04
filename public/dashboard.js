@@ -32,9 +32,11 @@ async function copy(text) {
 function renderList(docs) {
   const list = $('list');
   if (!docs.length) {
+    list.className = '';
     list.innerHTML = `<div class="empty">Belum ada dokumen. <a href="/">Bikin yang pertama →</a></div>`;
     return;
   }
+  list.className = 'doc-list';
   list.innerHTML = '';
   for (const d of docs) {
     const row = document.createElement('div');
@@ -72,6 +74,7 @@ async function load() {
     const data = await api('GET', '/api/docs');
     renderList(data.docs);
   } catch (e) {
+    $('list').className = '';
     $('list').innerHTML = `<p class="muted">${escapeHtml(e.message)}</p>`;
   }
 }

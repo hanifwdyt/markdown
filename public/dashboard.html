@@ -8,7 +8,10 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">✎ markdown<span>.hanif.app</span></a>
+  <a class="brand" href="/">
+    <svg class="docmark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6.5 3h7L18 7.5V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v4.5h4.5"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/></svg>
+    <span class="brand-word">Markdown</span><span class="brand-tld">.hanif.app</span>
+  </a>
   <div class="controls">
     <a class="btn primary" href="/">+ Dokumen baru</a>
     <div class="account" id="account"></div>
@@ -17,7 +20,8 @@
 
 <main class="dash">
   <h1>Dokumen gue</h1>
-  <div id="list" class="doc-list"><p class="muted">Loading...</p></div>
+  <p class="dash-sub">Semua markdown yang lo simpan. Klik buat edit, atau bagikan link-nya.</p>
+  <div id="list"><p class="muted">Memuat…</p></div>
 </main>
 
 <div class="toast" id="toast" hidden></div>
