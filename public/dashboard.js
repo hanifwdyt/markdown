@@ -39,11 +39,12 @@ function renderList(docs) {
   for (const d of docs) {
     const row = document.createElement('div');
     row.className = 'doc-row';
-    const url = location.origin + '/d/' + d.id;
+    const url = location.origin + (d.url || '/d/' + d.id);
+    const slugTag = d.slug ? `<span class="slug-tag" title="Custom URL">/${escapeHtml(d.slug)}</span>` : '';
     row.innerHTML = `
       <div class="doc-main">
         <a class="doc-title" href="/?id=${d.id}">${escapeHtml(d.title || 'Untitled')} ${d.has_passcode ? '<span class="lock" title="Ada passcode">🔒</span>' : ''}</a>
-        <div class="doc-meta">${d.views} views · diubah ${fmtDate(d.updated_at)}</div>
+        <div class="doc-meta">${slugTag}${d.views} views · diubah ${fmtDate(d.updated_at)}</div>
       </div>
       <div class="doc-row-actions">
         <a class="btn ghost sm" href="/?id=${d.id}">Edit</a>

@@ -10,6 +10,7 @@ import { renderMarkdown, extractTitle } from './lib/render.js';
 import { resolveTheme, themeVarsCss, hljsTheme, THEMES, DEFAULT_THEME } from './lib/themes.js';
 import {
   createDoc, getDoc, peekDoc, bumpView, listDocs, updateDoc, setPasscode, deleteDoc,
+  resolveDoc, slugTaken, setSlug,
 } from './lib/store.js';
 import {
   registerUser, authenticate, createSession, destroySession, userFromSession,
@@ -24,6 +25,29 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_BYTES = 200 * 1024; // batas ukuran markdown per dokumen
 const PROD = process.env.NODE_ENV === 'production';
+
+// Kata yang ga boleh jadi slug (bentrok sama route / file statis).
+const RESERVED_SLUGS = new Set([
+  'd', 'raw', 'api', 'app', 'login', 'logout', 'vendor', 'hljs', 'livez',
+  'healthz', 'assets', 'static', 'public', 'admin', 'me', 'dashboard',
+  'register', 'new', 'edit', 'settings', 'about', 'help', 'index', 'favicon',
+  'robots', 'mermaid-run', 'auth', 'styles', 'view',
+]);
+
+// Validasi slug custom. Return { slug } atau { error }.
+function validateSlug(input) {
+  const slug = String(input || '').trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(slug)) {
+    return { error: 'Slug 3-50 karakter, huruf kecil/angka/strip, ga boleh diawali/diakhiri strip.' };
+  }
+  if (RESERVED_SLUGS.has(slug)) return { error: 'Slug itu dipakai sistem, pilih yang lain.' };
+  return { slug };
+}
+
+// URL kanonik dokumen: pakai slug kalau ada, fallback ke /d/<id>.
+function docUrl(doc) {
+  return doc.slug ? `/${doc.slug}` : `/d/${doc.id}`;
+}
 
 app.set('trust proxy', 1);
 app.use(
@@ -125,7 +149,8 @@ app.post('/api/docs', writeLimiter, (req, res) => {
 
 // List dokumen milik user.
 app.get('/api/docs', requireAuth, (req, res) => {
-  res.json({ docs: listDocs(req.user.id) });
+  const docs = listDocs(req.user.id).map((d) => ({ ...d, url: d.slug ? `/${d.slug}` : `/d/${d.id}` }));
+  res.json({ docs });
 });
 
 // Ambil 1 dokumen milik user (buat edit). Sertakan status passcode.
@@ -134,7 +159,8 @@ app.get('/api/docs/:id', requireAuth, (req, res) => {
   if (!doc || doc.user_id !== req.user.id) return res.status(404).json({ error: 'Ga ketemu.' });
   res.json({
     doc: {
-      id: doc.id, content: doc.content, theme: doc.theme, title: doc.title,
+      id: doc.id, slug: doc.slug || null, url: docUrl(doc),
+      content: doc.content, theme: doc.theme, title: doc.title,
       has_passcode: !!doc.passcode_enc, created_at: doc.created_at, updated_at: doc.updated_at,
     },
   });
@@ -169,6 +195,25 @@ app.put('/api/docs/:id/passcode', writeLimiter, requireAuth, (req, res) => {
   res.json({ ok: true, has_passcode: !!passcode });
 });
 
+// Set / ganti / hapus custom URL (slug) dokumen.
+app.put('/api/docs/:id/slug', writeLimiter, requireAuth, (req, res) => {
+  const doc = peekDoc(req.params.id);
+  if (!doc || doc.user_id !== req.user.id) return res.status(404).json({ error: 'Ga ketemu.' });
+
+  const raw = req.body?.slug;
+  // Kosong = hapus slug (balik ke /d/<id>).
+  if (raw == null || String(raw).trim() === '') {
+    setSlug({ id: doc.id, userId: req.user.id, slug: null });
+    return res.json({ ok: true, slug: null, url: `/d/${doc.id}` });
+  }
+  const v = validateSlug(raw);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (slugTaken(v.slug, doc.id)) return res.status(409).json({ error: 'Slug itu udah dipakai.' });
+
+  setSlug({ id: doc.id, userId: req.user.id, slug: v.slug });
+  res.json({ ok: true, slug: v.slug, url: `/${v.slug}` });
+});
+
 // Reveal passcode: butuh password akun lagi (anti bahu-melirik / sesi nyangkut).
 app.post('/api/docs/:id/reveal-passcode', authLimiter, requireAuth, (req, res) => {
   const doc = peekDoc(req.params.id);
@@ -191,14 +236,14 @@ app.delete('/api/docs/:id', requireAuth, (req, res) => {
 // Unlock dokumen ber-passcode → set signed cookie biar ga ditanya terus.
 const unlockLimiter = rateLimit({ windowMs: 5 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.post('/api/docs/:id/unlock', unlockLimiter, (req, res) => {
-  const doc = peekDoc(req.params.id);
+  const doc = resolveDoc(req.params.id); // bisa id atau slug
   if (!doc) return res.status(404).json({ error: 'Ga ketemu.' });
   if (!doc.passcode_enc) return res.json({ ok: true }); // ga ada passcode, ya udah
   if (!passcodeMatches(String(req.body?.passcode || ''), doc.passcode_enc)) {
     return res.status(403).json({ error: 'Passcode salah.' });
   }
   res.cookie(`ul_${doc.id}`, '1', { ...cookieOpts(24 * 60 * 60 * 1000), signed: true });
-  res.json({ ok: true });
+  res.json({ ok: true, url: docUrl(doc) });
 });
 
 // Preview live buat editor — render sama persis kayak view page.
@@ -255,27 +300,40 @@ function canView(req, doc) {
   return req.signedCookies?.[`ul_${doc.id}`] === '1'; // udah unlock
 }
 
-// View page: render dokumen server-side dengan tema (+ gate passcode).
-app.get('/d/:id', (req, res) => {
-  const doc = peekDoc(req.params.id);
-  if (!doc) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-
+// Render dokumen (dipakai /d/:id maupun shortcut top-level /:slug).
+function serveDoc(req, res, doc) {
   if (!canView(req, doc)) {
     return res.sendFile(path.join(__dirname, 'public', 'unlock.html'));
   }
-
   bumpView(doc.id);
   const theme = resolveTheme(req.query.theme || doc.theme);
   res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, contentHtml: renderMarkdown(doc.content) }));
+}
+
+// View page by id atau slug.
+app.get('/d/:id', (req, res) => {
+  const doc = resolveDoc(req.params.id);
+  if (!doc) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  serveDoc(req, res, doc);
 });
 
-// Raw markdown (hormati passcode gate).
+// Raw markdown (hormati passcode gate). Terima id atau slug.
 app.get('/raw/:id', (req, res) => {
-  const doc = peekDoc(req.params.id);
+  const doc = resolveDoc(req.params.id);
   if (!doc) return res.status(404).send('Not found');
-  if (!canView(req, doc)) return res.status(401).send('Protected. Unlock via /d/' + doc.id);
+  if (!canView(req, doc)) return res.status(401).send('Protected. Unlock via ' + docUrl(doc));
   bumpView(doc.id);
   res.type('text/plain; charset=utf-8').send(doc.content);
+});
+
+// Shortcut top-level: markdown.hanif.app/<slug>. Didaftarin PALING AKHIR biar
+// ga nge-shadow route lain (semua route & static udah dievaluasi duluan).
+app.get('/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  if (slug.includes('.')) return next(); // file statis / favicon dll
+  const doc = resolveDoc(slug);
+  if (!doc) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  serveDoc(req, res, doc);
 });
 
 app.listen(PORT, () => {

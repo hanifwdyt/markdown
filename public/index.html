@@ -43,6 +43,17 @@
     </div>
     <a id="openLink" class="link-open" target="_blank" rel="noopener">Buka di tab baru →</a>
 
+    <!-- Custom URL: cuma muncul kalau dokumen owned (login) -->
+    <div class="custom-url-box" id="customUrlBox" hidden>
+      <div class="pc-head"><strong>🔗 Custom URL</strong></div>
+      <p class="pc-hint">Bikin link yang gampang diinget. Kosongin buat balik ke link acak.</p>
+      <div class="slug-row">
+        <span class="slug-prefix" id="slugPrefix">markdown.hanif.app/</span>
+        <input id="slugInput" type="text" placeholder="nama-custom" autocomplete="off" spellcheck="false">
+        <button id="slugSave" class="btn primary" type="button">Simpan</button>
+      </div>
+    </div>
+
     <!-- Passcode section: cuma muncul kalau dokumen owned (login) -->
     <div class="passcode-box" id="passcodeBox" hidden>
       <div class="pc-head">

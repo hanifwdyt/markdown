@@ -124,6 +124,20 @@ a.brand { text-decoration: none; color: var(--ui-fg); }
 .link-open { display: inline-block; margin-top: 10px; font-size: 0.85em; color: var(--ui-accent); text-decoration: none; }
 .link-open:hover { text-decoration: underline; }
 
+/* Custom URL box */
+.custom-url-box { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--ui-border); }
+.slug-row { display: flex; align-items: stretch; gap: 0; }
+.slug-prefix {
+  display: flex; align-items: center; padding: 0 8px; font-size: 0.82em; color: var(--ui-muted);
+  background: var(--ui-panel); border: 1px solid var(--ui-border); border-right: 0;
+  border-radius: 8px 0 0 8px; white-space: nowrap;
+}
+.slug-row input {
+  flex: 1; min-width: 0; font: inherit; padding: 9px 10px;
+  border: 1px solid var(--ui-border); background: var(--ui-bg); color: var(--ui-fg); border-radius: 0;
+}
+.slug-row .btn { border-radius: 0 8px 8px 0; }
+
 /* Passcode box */
 .passcode-box { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--ui-border); }
 .pc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
@@ -184,6 +198,10 @@ body.centered {
 .doc-title:hover { color: var(--ui-accent); }
 .doc-title .lock { font-size: 0.85em; }
 .doc-meta { font-size: 0.78em; color: var(--ui-muted); margin-top: 3px; }
+.slug-tag {
+  font-family: ui-monospace, monospace; color: var(--ui-accent);
+  background: var(--ui-panel); padding: 1px 6px; border-radius: 5px; margin-right: 8px;
+}
 .doc-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 .toast {

@@ -10,7 +10,12 @@ let THEMES = {};
 let currentTheme = 'light';
 let me = null;            // user login (atau null)
 let docId = null;         // id dokumen kalau lagi edit / udah disave
+let docSlug = null;       // custom URL (slug), kalau ada
 let docHasPasscode = false;
+
+function canonicalUrl() {
+  return location.origin + (docSlug ? '/' + docSlug : '/d/' + docId);
+}
 
 const SAMPLE = `# Halo 👋
 
@@ -160,7 +165,7 @@ async function primaryAction() {
         }
       }
     }
-    openShareModal(location.origin + (data.url || `/d/${docId}`));
+    openShareModal();
   } catch (e) {
     toast(e.message);
   } finally {
@@ -169,16 +174,33 @@ async function primaryAction() {
   }
 }
 
-function openShareModal(url) {
+function openShareModal() {
+  const url = canonicalUrl();
   $('modalTitle').textContent = me ? 'Tersimpan & siap dibagikan' : 'Link siap dibagikan';
   $('shareUrl').value = url;
   $('openLink').setAttribute('href', url);
-  // Passcode box cuma buat dokumen owned.
-  const box = $('passcodeBox');
-  box.hidden = !(me && docId);
-  if (me && docId) refreshPasscodeUI();
+  // Custom URL + passcode box cuma buat dokumen owned.
+  const owned = !!(me && docId);
+  $('customUrlBox').hidden = !owned;
+  $('passcodeBox').hidden = !owned;
+  if (owned) {
+    $('slugPrefix').textContent = location.host + '/';
+    $('slugInput').value = docSlug || '';
+    refreshPasscodeUI();
+  }
   $('modal').hidden = false;
   $('shareUrl').select();
+}
+
+async function saveSlug() {
+  const slug = $('slugInput').value.trim();
+  try {
+    const data = await api('PUT', `/api/docs/${docId}/slug`, { slug });
+    docSlug = data.slug;
+    $('shareUrl').value = canonicalUrl();
+    $('openLink').setAttribute('href', canonicalUrl());
+    toast(docSlug ? 'Custom URL disimpan.' : 'Custom URL dihapus.');
+  } catch (e) { toast(e.message); }
 }
 
 // ---- Passcode management ----
@@ -236,6 +258,7 @@ async function loadExisting(id) {
   const doc = data.doc;
   editor.value = doc.content;
   docId = doc.id;
+  docSlug = doc.slug || null;
   docHasPasscode = doc.has_passcode;
   if (doc.theme && THEMES[doc.theme]) { currentTheme = doc.theme; themeSel.value = doc.theme; applyTheme(doc.theme); }
 }
@@ -269,6 +292,8 @@ $('copyMd').addEventListener('click', () => copy(editor.value, 'Markdown disalin
 $('copyUrl').addEventListener('click', () => copy($('shareUrl').value, 'Link disalin.'));
 $('closeModal').addEventListener('click', () => ($('modal').hidden = true));
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) $('modal').hidden = true; });
+$('slugSave').addEventListener('click', saveSlug);
+$('slugInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSlug(); });
 $('pcSave').addEventListener('click', savePasscode);
 $('pcRemove').addEventListener('click', removePasscode);
 $('pcReveal').addEventListener('click', openReveal);
