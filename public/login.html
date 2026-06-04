@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk · markdown.hanif.app</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="centered">
+<div class="auth-card">
+  <a class="brand" href="/">✎ markdown<span>.hanif.app</span></a>
+
+  <div class="tabs">
+    <button class="tab active" id="tabLogin" type="button">Login</button>
+    <button class="tab" id="tabRegister" type="button">Daftar</button>
+  </div>
+
+  <form id="authForm" autocomplete="on">
+    <label class="auth-field">
+      <span>Email</span>
+      <input id="email" type="email" autocomplete="email" required placeholder="kamu@email.com">
+    </label>
+    <label class="auth-field">
+      <span>Password</span>
+      <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+    </label>
+    <p class="auth-hint" id="hint">Minimal 8 karakter.</p>
+    <button class="btn primary block" id="submitBtn" type="submit">Login</button>
+  </form>
+
+  <p class="auth-err" id="err" hidden></p>
+  <a class="auth-back" href="/">← Balik ke editor</a>
+</div>
+<script src="/auth.js"></script>
+</body>
+</html>

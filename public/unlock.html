@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dokumen terkunci · markdown.hanif.app</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="centered">
+<div class="auth-card">
+  <div class="lock-big">🔒</div>
+  <h2>Dokumen ini dikunci</h2>
+  <p class="auth-hint">Masukin passcode buat lihat isinya.</p>
+  <form id="unlockForm">
+    <label class="auth-field">
+      <span>Passcode</span>
+      <input id="passcode" type="text" autocomplete="off" required placeholder="Passcode" autofocus>
+    </label>
+    <button class="btn primary block" id="submitBtn" type="submit">Buka</button>
+  </form>
+  <p class="auth-err" id="err" hidden></p>
+  <p class="auth-hint forgot">Lupa passcode? Yang punya dokumen bisa lihat passcode-nya lewat <a href="/app">dashboard</a> (verifikasi password akun).</p>
+  <a class="auth-back" href="/">← Balik ke editor</a>
+</div>
+<script src="/unlock.js"></script>
+</body>
+</html>

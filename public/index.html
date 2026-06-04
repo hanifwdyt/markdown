@@ -4,21 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>markdown.hanif.app — render markdown, bagikan link</title>
-<meta name="description" content="Tulis atau paste markdown, render dengan tema, bagikan lewat link pendek.">
+<meta name="description" content="Tulis atau paste markdown, render dengan tema, bagikan lewat link pendek. Login buat nyimpen & passcode.">
 <link rel="stylesheet" href="/hljs/github.min.css" id="hljs-theme">
 <link rel="stylesheet" href="/view.css">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">✎ markdown<span>.hanif.app</span></div>
+  <a class="brand" href="/">✎ markdown<span>.hanif.app</span></a>
   <div class="controls">
     <label class="field">
       <span>Tema</span>
       <select id="theme"></select>
     </label>
     <button id="copyMd" class="btn ghost" type="button">Copy MD</button>
-    <button id="share" class="btn primary" type="button">Share →</button>
+    <button id="primaryBtn" class="btn primary" type="button">Share →</button>
+    <div class="account" id="account"><!-- diisi JS --></div>
   </div>
 </header>
 
@@ -31,17 +32,47 @@
   </section>
 </main>
 
+<!-- Modal share / manage -->
 <div class="modal" id="modal" hidden>
   <div class="modal-card">
-    <h3>Link siap dibagikan</h3>
+    <button class="modal-x" id="closeModal" type="button" aria-label="Tutup">×</button>
+    <h3 id="modalTitle">Link siap dibagikan</h3>
     <div class="link-row">
       <input id="shareUrl" type="text" readonly>
       <button id="copyUrl" class="btn primary" type="button">Copy</button>
     </div>
-    <div class="modal-actions">
-      <a id="openLink" class="btn ghost" target="_blank" rel="noopener">Buka</a>
-      <button id="closeModal" class="btn ghost" type="button">Tutup</button>
+    <a id="openLink" class="link-open" target="_blank" rel="noopener">Buka di tab baru →</a>
+
+    <!-- Passcode section: cuma muncul kalau dokumen owned (login) -->
+    <div class="passcode-box" id="passcodeBox" hidden>
+      <div class="pc-head">
+        <strong>🔒 Passcode</strong>
+        <span class="pc-status" id="pcStatus">tidak diset</span>
+      </div>
+      <p class="pc-hint">Kalau diset, orang harus masukin passcode buat lihat dokumen ini.</p>
+      <div class="link-row">
+        <input id="pcInput" type="text" placeholder="Passcode baru..." autocomplete="off">
+        <button id="pcSave" class="btn primary" type="button">Simpan</button>
+      </div>
+      <div class="pc-actions">
+        <button id="pcReveal" class="btn ghost" type="button" hidden>Lihat passcode</button>
+        <button id="pcRemove" class="btn danger" type="button" hidden>Hapus passcode</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- Modal reveal passcode (verifikasi password akun) -->
+<div class="modal" id="revealModal" hidden>
+  <div class="modal-card">
+    <button class="modal-x" id="closeReveal" type="button" aria-label="Tutup">×</button>
+    <h3>Lihat passcode</h3>
+    <p class="pc-hint">Lupa passcode? Masukin password akun lo buat lihat passcode dokumen ini.</p>
+    <div class="link-row">
+      <input id="acctPass" type="password" placeholder="Password akun" autocomplete="current-password">
+      <button id="revealSubmit" class="btn primary" type="button">Lihat</button>
+    </div>
+    <div class="reveal-result" id="revealResult" hidden></div>
   </div>
 </div>
 
