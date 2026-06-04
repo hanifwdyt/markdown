@@ -60,6 +60,9 @@ function cookieOpts(maxAge) {
 // Static: app shell + highlight.js themes.
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/hljs', express.static(path.dirname(require.resolve('highlight.js/styles/github.css'))));
+// Bundle mermaid (self-contained, di-load lazy oleh mermaid-run.js).
+app.get('/vendor/mermaid.min.js', (_req, res) =>
+  res.type('application/javascript').sendFile(require.resolve('mermaid/dist/mermaid.min.js')));
 
 app.get('/livez', (_req, res) => res.send('ok'));
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
@@ -240,6 +243,7 @@ ${contentHtml}
 <footer class="doc-footer">
   <a href="/">✎ markdown.hanif.app</a>
 </footer>
+<script src="/mermaid-run.js" defer></script>
 </body>
 </html>`;
 }

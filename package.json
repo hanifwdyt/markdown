@@ -21,7 +21,7 @@
     "highlight.js": "^11.11.1",
     "jsdom": "^26.0.0",
     "marked": "^15.0.7",
-    "marked-highlight": "^2.2.1",
+    "mermaid": "^11.15.0",
     "nanoid": "^5.1.5"
   }
 }

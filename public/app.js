@@ -30,6 +30,15 @@ function hello(name) {
 
 > Login dulu biar dokumen kesimpen dan bisa diedit kapan aja.
 
+## Flowchart (Mermaid)
+\`\`\`mermaid
+flowchart LR
+  A[Tulis markdown] --> B{Login?}
+  B -->|Ya| C[Kesimpen + bisa diedit]
+  B -->|Nggak| D[Quick share link]
+  C --> E[Kasih passcode 🔒]
+\`\`\`
+
 | Kolom | Nilai |
 |-------|-------|
 | Cepat | ✅ |
@@ -115,8 +124,13 @@ async function renderPreview() {
   try {
     const data = await api('POST', '/api/preview', { content: editor.value });
     preview.innerHTML = data.html;
+    if (window.renderMermaid) window.renderMermaid(preview, currentTheme);
   } catch (_) {}
   if (!docId) localStorage.setItem('md.content', editor.value);
+}
+
+function hasMermaid() {
+  return /```\s*mermaid/.test(editor.value);
 }
 function schedulePreview() {
   if (timer) clearTimeout(timer);
@@ -244,7 +258,11 @@ function toast(msg) {
 }
 
 // ---- Wire up ----
-themeSel.addEventListener('change', () => applyTheme(themeSel.value));
+themeSel.addEventListener('change', () => {
+  applyTheme(themeSel.value);
+  // Mermaid ga ikut re-color otomatis; render ulang preview biar nyocokin tema.
+  if (hasMermaid()) renderPreview();
+});
 editor.addEventListener('input', schedulePreview);
 $('primaryBtn').addEventListener('click', primaryAction);
 $('copyMd').addEventListener('click', () => copy(editor.value, 'Markdown disalin.'));
