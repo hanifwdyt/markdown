@@ -10,6 +10,7 @@ Render file markdown dengan tema, lalu bagikan lewat link pendek. Simpel.
 - **Dashboard** (`/app`) — list semua dokumen lo: edit, view, copy link, hapus.
 - **Passcode per dokumen** — proteksi view. Pengunjung harus masukin passcode (`/d/:id` nampilin halaman unlock). Owner bypass otomatis.
 - **Lupa passcode** — owner bisa lihat lagi passcode-nya dari editor/modal dengan verifikasi password akun (passcode disimpan ter-enkripsi, bukan hash).
+- **Mermaid** — blok ` ```mermaid ` di-render jadi diagram (flowchart, sequence, dll). Bundle `mermaid.js` di-load lazy dari `/vendor/mermaid.min.js` (cuma kalau ada blok mermaid). Jalan di view page + live preview, ikut tema.
 - **View page** (`/d/:id`) — render server-side, aman dari XSS, tema sesuai pilihan.
   - Override tema lewat query: `/d/:id?theme=dark`
 - **Raw** (`/raw/:id`) — markdown mentah (text/plain), hormati passcode gate.
