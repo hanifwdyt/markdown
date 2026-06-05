@@ -74,10 +74,17 @@ Build pakai `Dockerfile`. Mount persistent volume ke `/app/data` biar dokumen
 Akses programatik: tukar credentials → token Bearer → tarik list short link.
 Halaman dokumentasi: **`/api`**.
 
-| Method | Path                  | Fungsi                                         |
-|--------|-----------------------|------------------------------------------------|
-| POST   | `/api/v1/auth/token`  | `{ email, password }` → `{ token }` (30 hari)  |
-| GET    | `/api/v1/docs`        | `Authorization: Bearer <token>` → list short link |
+Semua endpoint `/api/v1/docs*` butuh header `Authorization: Bearer <token>`.
+
+| Method | Path                          | Fungsi                                            |
+|--------|-------------------------------|---------------------------------------------------|
+| POST   | `/api/v1/auth/token`          | `{ email, password }` → `{ token }` (30 hari)     |
+| GET    | `/api/v1/docs`                | List semua short link milik akun                  |
+| POST   | `/api/v1/docs`                | Push markdown baru → `{ id, url, slug }` (slug/theme/font/passcode opsional) |
+| GET    | `/api/v1/docs/:idOrSlug`      | Ambil 1 dokumen + konten mentah                   |
+| PUT    | `/api/v1/docs/:idOrSlug`      | Replace konten (link tetap sama)                  |
+| PUT    | `/api/v1/docs/:idOrSlug/slug` | Set/ganti/hapus custom link                       |
+| DELETE | `/api/v1/docs/:idOrSlug`      | Hapus dokumen                                     |
 
 ```bash
 # 1) tukar credentials jadi token

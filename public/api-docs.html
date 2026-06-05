@@ -82,7 +82,33 @@
 }</code></pre>
     <p class="note">Salah email/password → <code>401</code> <code>{ "error": "Email atau password salah." }</code></p>
 
-    <h2>2 · List short link</h2>
+    <h2>2 · Push — bikin dokumen baru</h2>
+    <p>Kirim markdown, langsung dapet short link. Bisa sekalian set <code>slug</code> (custom link), <code>theme</code>, <code>font</code>, dan <code>passcode</code>.</p>
+    <div class="ep"><span class="method post">POST</span><span class="path">/api/v1/docs</span></div>
+    <h3>Request body (JSON)</h3>
+    <table class="fields">
+      <tr><th>Field</th><th>Tipe</th><th>Keterangan</th></tr>
+      <tr><td><code>content</code></td><td>string</td><td><strong>Wajib.</strong> Isi markdown</td></tr>
+      <tr><td><code>slug</code></td><td>string</td><td>Opsional — custom link (3–50 char, <code>a-z 0-9 -</code>)</td></tr>
+      <tr><td><code>theme</code> · <code>font</code></td><td>string</td><td>Opsional — default <code>light</code> · <code>serif</code></td></tr>
+      <tr><td><code>passcode</code></td><td>string</td><td>Opsional — kunci dokumen</td></tr>
+    </table>
+    <h3>Contoh</h3>
+    <pre><code># push file md, kasih custom link "rilis-notes"
+curl -X POST https://markdown.hanif.app/api/v1/docs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"slug\":\"rilis-notes\", \"content\": $(jq -Rs . &lt; notes.md)}"</code></pre>
+    <h3>Response <code>201</code></h3>
+    <pre><code>{
+  "id": "k7p2q9m4a",
+  "url": "https://markdown.hanif.app/rilis-notes",
+  "slug": "rilis-notes",
+  "has_passcode": false
+}</code></pre>
+    <p class="note">Slug udah dipakai → <code>409</code>. Format slug salah → <code>400</code>.</p>
+
+    <h2>3 · List short link</h2>
     <div class="ep"><span class="method get">GET</span><span class="path">/api/v1/docs</span></div>
     <h3>Header</h3>
     <pre><code>Authorization: Bearer &lt;token&gt;</code></pre>
@@ -121,7 +147,7 @@
     </table>
     <p class="note">Token invalid/kadaluwarsa → <code>401</code> <code>{ "error": "Token tidak valid atau kadaluarsa." }</code></p>
 
-    <h2>3 · Ambil 1 dokumen</h2>
+    <h2>4 · Ambil 1 dokumen</h2>
     <p>Termasuk konten markdown mentahnya. Bisa pakai <code>id</code> atau <code>slug</code>.</p>
     <div class="ep"><span class="method get">GET</span><span class="path">/api/v1/docs/&lt;id-atau-slug&gt;</span></div>
     <pre><code>curl https://markdown.hanif.app/api/v1/docs/catatan-a \
@@ -139,7 +165,7 @@
   }
 }</code></pre>
 
-    <h2>4 · Replace / edit dokumen</h2>
+    <h2>5 · Replace / edit dokumen</h2>
     <p>Ganti isi dokumen dengan markdown baru — <strong>link-nya tetap sama</strong> (id & slug ga berubah). Bisa pakai <code>id</code> atau <code>slug</code>.</p>
     <div class="ep"><span class="method post">PUT</span><span class="path">/api/v1/docs/&lt;id-atau-slug&gt;</span></div>
     <h3>Request body (JSON)</h3>
@@ -165,6 +191,22 @@ curl -X PUT https://markdown.hanif.app/api/v1/docs/catatan-a \
   "updated_at": 1780640000000
 }</code></pre>
     <p class="note">Cuma bisa edit dokumen milik akun pemegang token. Bukan punya lo → <code>401</code>/<code>404</code>. Passcode & slug ga keganti pas replace.</p>
+
+    <h2>6 · Custom link</h2>
+    <p>Set / ganti / hapus custom link dokumen yang udah ada. Kirim <code>slug</code> kosong buat balik ke link acak.</p>
+    <div class="ep"><span class="method post">PUT</span><span class="path">/api/v1/docs/&lt;id-atau-slug&gt;/slug</span></div>
+    <pre><code>curl -X PUT https://markdown.hanif.app/api/v1/docs/k7p2q9m4a/slug \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"slug":"link-baru"}'</code></pre>
+    <pre><code>{ "ok": true, "slug": "link-baru", "url": "https://markdown.hanif.app/link-baru" }</code></pre>
+    <p class="note">Udah dipakai → <code>409</code>. Format salah → <code>400</code>.</p>
+
+    <h2>7 · Hapus dokumen</h2>
+    <div class="ep"><span class="method post">DELETE</span><span class="path">/api/v1/docs/&lt;id-atau-slug&gt;</span></div>
+    <pre><code>curl -X DELETE https://markdown.hanif.app/api/v1/docs/link-baru \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+    <pre><code>{ "ok": true }</code></pre>
 
     <h2>Catatan</h2>
     <ul>

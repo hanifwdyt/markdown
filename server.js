@@ -235,6 +235,59 @@ app.put('/api/v1/docs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
   });
 });
 
+// Push: bikin dokumen baru via API, langsung dapet link (+ slug/passcode opsional).
+app.post('/api/v1/docs', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const content = typeof req.body?.content === 'string' ? req.body.content : '';
+  if (!content.trim()) return res.status(400).json({ error: 'Markdown kosong.' });
+  if (tooBig(content)) return res.status(413).json({ error: 'Markdown kegedean (maks 200KB).' });
+
+  const theme = resolveTheme(req.body?.theme);
+  const font = resolveFont(req.body?.font);
+  const passcode = req.body?.passcode ? String(req.body.passcode) : null;
+
+  // Slug opsional — validasi & cek bentrok dulu sebelum bikin.
+  let slug = null;
+  if (req.body?.slug != null && String(req.body.slug).trim() !== '') {
+    const v = validateSlug(req.body.slug);
+    if (v.error) return res.status(400).json({ error: v.error });
+    if (slugTaken(v.slug, null)) return res.status(409).json({ error: 'Slug itu udah dipakai.' });
+    slug = v.slug;
+  }
+
+  const id = createDoc({ content, theme, font, title: extractTitle(content), userId: req.apiUser.id, passcode });
+  if (slug) setSlug({ id, userId: req.apiUser.id, slug });
+  res.status(201).json({
+    id,
+    url: baseUrl(req) + (slug ? `/${slug}` : `/d/${id}`),
+    slug: slug || null,
+    has_passcode: !!passcode,
+  });
+});
+
+// Set / ganti / hapus custom link (by id ATAU slug).
+app.put('/api/v1/docs/:id/slug', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const doc = apiOwnedDoc(req, res);
+  if (!doc) return;
+  const raw = req.body?.slug;
+  if (raw == null || String(raw).trim() === '') {
+    setSlug({ id: doc.id, userId: req.apiUser.id, slug: null });
+    return res.json({ ok: true, slug: null, url: baseUrl(req) + `/d/${doc.id}` });
+  }
+  const v = validateSlug(raw);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (slugTaken(v.slug, doc.id)) return res.status(409).json({ error: 'Slug itu udah dipakai.' });
+  setSlug({ id: doc.id, userId: req.apiUser.id, slug: v.slug });
+  res.json({ ok: true, slug: v.slug, url: baseUrl(req) + `/${v.slug}` });
+});
+
+// Hapus dokumen (by id ATAU slug).
+app.delete('/api/v1/docs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const doc = apiOwnedDoc(req, res);
+  if (!doc) return;
+  deleteDoc(doc.id, req.apiUser.id);
+  res.json({ ok: true });
+});
+
 // ──────────────────────────── DOCS ────────────────────────────
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 40, standardHeaders: true, legacyHeaders: false });
 
