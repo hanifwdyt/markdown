@@ -95,6 +95,7 @@ app.get('/healthz', (_req, res) => res.json({ ok: true }));
 // Halaman dengan URL bersih.
 app.get('/login', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/app', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/api', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'api-docs.html')));
 
 // ──────────────────────────── AUTH ────────────────────────────
 const authLimiter = rateLimit({ windowMs: 15 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
@@ -125,6 +126,113 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/me', (req, res) => {
   res.json({ user: req.user });
+});
+
+// ──────────────────────── PUBLIC API (v1) ────────────────────────
+// Akses programatik: tukar credentials -> token Bearer, lalu tarik
+// list short link pakai token itu. Token = session (berlaku 30 hari).
+function baseUrl(req) {
+  return `${req.protocol}://${req.get('host')}`;
+}
+function bearerToken(req) {
+  const h = req.get('authorization') || '';
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : null;
+}
+function requireApiAuth(req, res, next) {
+  const user = userFromSession(bearerToken(req));
+  if (!user) return res.status(401).json({ error: 'Token tidak valid atau kadaluarsa.' });
+  req.apiUser = user;
+  next();
+}
+
+// Tukar email+password jadi token Bearer.
+app.post('/api/v1/auth/token', authLimiter, (req, res) => {
+  const { email, password } = req.body || {};
+  const user = authenticate(email, password);
+  if (!user) return res.status(401).json({ error: 'Email atau password salah.' });
+  const { token, maxAge } = createSession(user.id);
+  res.json({
+    token,
+    token_type: 'Bearer',
+    expires_in: Math.floor(maxAge / 1000),
+    user: { email: user.email },
+  });
+});
+
+const apiWriteLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+
+// List semua short link milik pemegang token.
+app.get('/api/v1/docs', requireApiAuth, (req, res) => {
+  const root = baseUrl(req);
+  const docs = listDocs(req.apiUser.id).map((d) => ({
+    id: d.id,
+    title: d.title || 'Untitled',
+    url: root + (d.slug ? `/${d.slug}` : `/d/${d.id}`),
+    slug: d.slug || null,
+    has_passcode: d.has_passcode,
+    theme: d.theme,
+    font: d.font || DEFAULT_FONT,
+    views: d.views,
+    created_at: d.created_at,
+    updated_at: d.updated_at,
+  }));
+  res.json({ count: docs.length, docs });
+});
+
+// Ambil dokumen tunggal (by id ATAU slug) — termasuk konten markdown.
+function apiOwnedDoc(req, res) {
+  const doc = resolveDoc(req.params.id);
+  if (!doc || doc.user_id !== req.apiUser.id) {
+    res.status(404).json({ error: 'Dokumen ga ketemu atau bukan punya lo.' });
+    return null;
+  }
+  return doc;
+}
+
+app.get('/api/v1/docs/:id', requireApiAuth, (req, res) => {
+  const doc = apiOwnedDoc(req, res);
+  if (!doc) return;
+  res.json({
+    doc: {
+      id: doc.id,
+      title: doc.title || 'Untitled',
+      url: baseUrl(req) + (doc.slug ? `/${doc.slug}` : `/d/${doc.id}`),
+      slug: doc.slug || null,
+      content: doc.content,
+      theme: doc.theme,
+      font: doc.font || DEFAULT_FONT,
+      has_passcode: !!doc.passcode_enc,
+      views: doc.views,
+      created_at: doc.created_at,
+      updated_at: doc.updated_at,
+    },
+  });
+});
+
+// Replace konten dokumen (link tetap sama). by id ATAU slug.
+app.put('/api/v1/docs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const doc = apiOwnedDoc(req, res);
+  if (!doc) return;
+
+  const content = typeof req.body?.content === 'string' ? req.body.content : '';
+  if (!content.trim()) return res.status(400).json({ error: 'Markdown kosong.' });
+  if (tooBig(content)) return res.status(413).json({ error: 'Markdown kegedean (maks 200KB).' });
+
+  // theme/font opsional — kalau ga dikirim, pertahanin yang lama.
+  const theme = req.body?.theme !== undefined ? resolveTheme(req.body.theme) : doc.theme;
+  const font = req.body?.font !== undefined ? resolveFont(req.body.font) : (doc.font || DEFAULT_FONT);
+
+  updateDoc({ id: doc.id, userId: req.apiUser.id, content, theme, font, title: extractTitle(content) });
+  const updated = peekDoc(doc.id);
+  res.json({
+    ok: true,
+    id: doc.id,
+    url: baseUrl(req) + (doc.slug ? `/${doc.slug}` : `/d/${doc.id}`),
+    slug: doc.slug || null,
+    title: updated.title || 'Untitled',
+    updated_at: updated.updated_at,
+  });
 });
 
 // ──────────────────────────── DOCS ────────────────────────────

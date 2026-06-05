@@ -64,10 +64,31 @@ Build pakai `Dockerfile`. Mount persistent volume ke `/app/data` biar dokumen
 | POST   | `/api/docs/:id/reveal-passcode` | Lihat passcode (verifikasi password akun) |
 | POST   | `/api/docs/:id/unlock`        | Buka doc ber-passcode (set cookie)          |
 | POST   | `/api/preview`                | Render preview → `{ html }`                 |
-| GET    | `/api/themes`                 | Daftar tema                                 |
-| GET    | `/d/:id`                      | View page (gate passcode)                   |
+| GET    | `/api/themes` · `/api/fonts`  | Daftar tema · daftar font                   |
+| GET    | `/d/:id` · `/:slug`           | View page (gate passcode)                   |
 | GET    | `/raw/:id`                    | Markdown mentah (gate passcode)             |
 | GET    | `/livez`                      | Healthcheck                                 |
+
+### Public API (v1)
+
+Akses programatik: tukar credentials → token Bearer → tarik list short link.
+Halaman dokumentasi: **`/api`**.
+
+| Method | Path                  | Fungsi                                         |
+|--------|-----------------------|------------------------------------------------|
+| POST   | `/api/v1/auth/token`  | `{ email, password }` → `{ token }` (30 hari)  |
+| GET    | `/api/v1/docs`        | `Authorization: Bearer <token>` → list short link |
+
+```bash
+# 1) tukar credentials jadi token
+TOKEN=$(curl -s -X POST https://markdown.hanif.app/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"kamu@email.com","password":"••••••••"}' | jq -r .token)
+
+# 2) tarik semua short link
+curl -s https://markdown.hanif.app/api/v1/docs \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
 
 ## Security notes
 
