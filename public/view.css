@@ -6,6 +6,8 @@
   --font-doc-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
   --font-doc-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-doc-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  /* Font dokumen aktif — di-override server (view page) / JS (preview editor). */
+  --font-doc: var(--font-doc-serif);
 }
 
 * { box-sizing: border-box; }
@@ -15,7 +17,7 @@ body {
   /* "meja": turunan otomatis dari warna kertas tema (jalan di light & dark). */
   background: color-mix(in oklab, var(--bg) 88%, #80807a);
   color: var(--fg);
-  font-family: var(--font-doc-serif);
+  font-family: var(--font-doc);
   font-size: 18px;
   line-height: 1.72;
   -webkit-font-smoothing: antialiased;
@@ -26,6 +28,7 @@ body {
 .doc {
   max-width: 760px;
   margin: clamp(20px, 5vw, 56px) auto;
+  font-family: var(--font-doc);
   background: var(--bg);
   border: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
   border-radius: 3px;
@@ -36,7 +39,7 @@ body {
 }
 
 .doc h1, .doc h2, .doc h3, .doc h4, .doc h5, .doc h6 {
-  font-family: var(--font-doc-serif);
+  font-family: var(--font-doc);
   margin: 1.7em 0 .55em;
   line-height: 1.25;
   font-weight: 600;

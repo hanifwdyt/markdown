@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 
 import { renderMarkdown, extractTitle } from './lib/render.js';
 import { resolveTheme, themeVarsCss, hljsTheme, THEMES, DEFAULT_THEME } from './lib/themes.js';
+import { resolveFont, fontStack, FONTS, DEFAULT_FONT } from './lib/fonts.js';
 import {
   createDoc, getDoc, peekDoc, bumpView, listDocs, updateDoc, setPasscode, deleteDoc,
   resolveDoc, slugTaken, setSlug,
@@ -137,13 +138,14 @@ function tooBig(content) {
 app.post('/api/docs', writeLimiter, (req, res) => {
   const content = typeof req.body?.content === 'string' ? req.body.content : '';
   const theme = resolveTheme(req.body?.theme);
+  const font = resolveFont(req.body?.font);
   if (!content.trim()) return res.status(400).json({ error: 'Markdown kosong.' });
   if (tooBig(content)) return res.status(413).json({ error: 'Markdown kegedean (maks 200KB).' });
 
   const title = extractTitle(content);
   // Passcode cuma berlaku buat user login (perlu akun buat recovery).
   const passcode = req.user && req.body?.passcode ? String(req.body.passcode) : null;
-  const id = createDoc({ content, theme, title, userId: req.user?.id || null, passcode });
+  const id = createDoc({ content, theme, font, title, userId: req.user?.id || null, passcode });
   res.json({ id, url: `/d/${id}`, owned: !!req.user });
 });
 
@@ -160,7 +162,7 @@ app.get('/api/docs/:id', requireAuth, (req, res) => {
   res.json({
     doc: {
       id: doc.id, slug: doc.slug || null, url: docUrl(doc),
-      content: doc.content, theme: doc.theme, title: doc.title,
+      content: doc.content, theme: doc.theme, font: doc.font || DEFAULT_FONT, title: doc.title,
       has_passcode: !!doc.passcode_enc, created_at: doc.created_at, updated_at: doc.updated_at,
     },
   });
@@ -177,7 +179,7 @@ app.put('/api/docs/:id', writeLimiter, requireAuth, (req, res) => {
 
   updateDoc({
     id: doc.id, userId: req.user.id, content,
-    theme: resolveTheme(req.body?.theme), title: extractTitle(content),
+    theme: resolveTheme(req.body?.theme), font: resolveFont(req.body?.font), title: extractTitle(content),
   });
   res.json({ ok: true, id: doc.id, url: `/d/${doc.id}` });
 });
@@ -264,12 +266,22 @@ app.get('/api/themes', (_req, res) => {
   });
 });
 
+// Daftar font dokumen buat dipakai editor.
+app.get('/api/fonts', (_req, res) => {
+  res.json({
+    default: DEFAULT_FONT,
+    fonts: Object.fromEntries(
+      Object.entries(FONTS).map(([k, v]) => [k, { name: v.name, stack: v.stack }])
+    ),
+  });
+});
+
 // ──────────────────────────── VIEW ────────────────────────────
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-function viewPage({ title, theme, contentHtml }) {
+function viewPage({ title, theme, font, contentHtml }) {
   const t = resolveTheme(theme);
   return `<!DOCTYPE html>
 <html lang="id" data-theme="${t}">
@@ -279,7 +291,8 @@ function viewPage({ title, theme, contentHtml }) {
 <title>${escapeHtml(title)} · markdown.hanif.app</title>
 <link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
 <link rel="stylesheet" href="/view.css">
-<style>${themeVarsCss(t)}</style>
+<style>${themeVarsCss(t)}
+:root{ --font-doc: ${fontStack(font)}; }</style>
 </head>
 <body>
 <main class="doc">
@@ -307,7 +320,8 @@ function serveDoc(req, res, doc) {
   }
   bumpView(doc.id);
   const theme = resolveTheme(req.query.theme || doc.theme);
-  res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, contentHtml: renderMarkdown(doc.content) }));
+  const font = resolveFont(req.query.font || doc.font);
+  res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, font, contentHtml: renderMarkdown(doc.content) }));
 }
 
 // View page by id atau slug.

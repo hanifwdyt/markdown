@@ -7,7 +7,10 @@ const previewWrap = $('previewWrap');
 const themeSel = $('theme');
 
 let THEMES = {};
+let FONTS = {};
 let currentTheme = 'light';
+let currentFont = 'serif';
+const fontSel = $('font');
 let me = null;            // user login (atau null)
 let docId = null;         // id dokumen kalau lagi edit / udah disave
 let docSlug = null;       // custom URL (slug), kalau ada
@@ -94,6 +97,32 @@ function applyTheme(key) {
   localStorage.setItem('md.theme', key);
 }
 
+// ---- Fonts ----
+async function loadFonts() {
+  const data = await api('GET', '/api/fonts');
+  FONTS = data.fonts;
+  currentFont = data.default;
+  fontSel.innerHTML = '';
+  for (const [key, f] of Object.entries(FONTS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = f.name;
+    fontSel.appendChild(opt);
+  }
+  const saved = localStorage.getItem('md.font');
+  if (saved && FONTS[saved]) currentFont = saved;
+  fontSel.value = currentFont;
+  applyFont(currentFont);
+}
+
+function applyFont(key) {
+  const f = FONTS[key];
+  if (!f) return;
+  currentFont = key;
+  previewWrap.style.setProperty('--font-doc', f.stack);
+  localStorage.setItem('md.font', key);
+}
+
 // ---- Auth state ----
 async function loadMe() {
   try {
@@ -153,9 +182,9 @@ async function primaryAction() {
   try {
     let data;
     if (me && docId) {
-      data = await api('PUT', `/api/docs/${docId}`, { content, theme: currentTheme });
+      data = await api('PUT', `/api/docs/${docId}`, { content, theme: currentTheme, font: currentFont });
     } else {
-      data = await api('POST', '/api/docs', { content, theme: currentTheme });
+      data = await api('POST', '/api/docs', { content, theme: currentTheme, font: currentFont });
       if (data.id) {
         docId = data.id;
         if (me) {
@@ -261,6 +290,7 @@ async function loadExisting(id) {
   docSlug = doc.slug || null;
   docHasPasscode = doc.has_passcode;
   if (doc.theme && THEMES[doc.theme]) { currentTheme = doc.theme; themeSel.value = doc.theme; applyTheme(doc.theme); }
+  if (doc.font && FONTS[doc.font]) { currentFont = doc.font; fontSel.value = doc.font; applyFont(doc.font); }
 }
 
 // ---- Helpers ----
@@ -286,6 +316,7 @@ themeSel.addEventListener('change', () => {
   // Mermaid ga ikut re-color otomatis; render ulang preview biar nyocokin tema.
   if (hasMermaid()) renderPreview();
 });
+fontSel.addEventListener('change', () => applyFont(fontSel.value));
 editor.addEventListener('input', schedulePreview);
 $('primaryBtn').addEventListener('click', primaryAction);
 $('copyMd').addEventListener('click', () => copy(editor.value, 'Markdown disalin.'));
@@ -314,6 +345,7 @@ editor.addEventListener('keydown', (e) => {
 
 (async function init() {
   await loadThemes();
+  await loadFonts();
   await loadMe();
   const params = new URLSearchParams(location.search);
   const id = params.get('id');
