@@ -138,6 +138,7 @@ body {
 }
 #editor::placeholder { color: var(--ink-3); }
 #editor:focus { color: var(--ink); }
+#editor.drag-over { box-shadow: inset 0 0 0 2px var(--ink-2); background: var(--paper-2, rgba(0,0,0,0.02)); }
 
 /* Preview = lembar kertas di atas meja. Var tema disuntik via JS (#previewWrap). */
 .preview-pane {

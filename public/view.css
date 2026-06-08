@@ -88,6 +88,33 @@ body {
 }
 .doc pre code { background: none; border: 0; padding: 0; font-size: .8em; line-height: 1.6; }
 
+/* Tombol Copy di code block (di-inject copy-code.js) */
+.doc pre.has-copy { position: relative; }
+.doc pre.has-copy .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-family: var(--font-doc-sans);
+  font-size: .72rem;
+  line-height: 1;
+  padding: 5px 9px;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--bg) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, color .12s, border-color .12s;
+}
+.doc pre.has-copy:hover .copy-btn,
+.doc pre.has-copy .copy-btn:focus-visible { opacity: 1; }
+.doc pre.has-copy .copy-btn:hover { color: var(--fg); border-color: var(--fg); }
+.doc pre.has-copy .copy-btn.copied { opacity: 1; color: var(--fg); border-color: var(--fg); }
+/* Layar sentuh: ga ada hover, tampilin terus biar bisa diakses */
+@media (hover: none) {
+  .doc pre.has-copy .copy-btn { opacity: 1; }
+}
+
 /* Syntax highlight MONOKROM — override tema hljs jadi hitam-putih.
  * Keyword tebal, komentar miring abu, sisanya abu/ink. Ga ada warna. */
 .doc .hljs { color: var(--code-fg); background: none; }

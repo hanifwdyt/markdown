@@ -24,6 +24,7 @@
       <span>Font</span>
       <select id="font"></select>
     </label>
+    <button id="imgBtn" class="btn ghost" type="button" hidden title="Upload gambar (atau paste / drag ke editor)">🖼 Gambar</button>
     <button id="copyMd" class="btn ghost" type="button">Copy MD</button>
     <button id="primaryBtn" class="btn primary" type="button">Share →</button>
     <div class="account" id="account"><!-- diisi JS --></div>
@@ -33,6 +34,7 @@
 <main class="split">
   <section class="pane editor-pane">
     <textarea id="editor" spellcheck="false" placeholder="# Halo&#10;&#10;Tulis **markdown** di sini..."></textarea>
+    <input id="imgInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" hidden>
   </section>
   <section class="pane preview-pane" id="previewWrap">
     <article class="doc" id="preview"></article>
@@ -97,6 +99,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="/mermaid-run.js"></script>
+<script src="/copy-code.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

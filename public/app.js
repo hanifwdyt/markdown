@@ -159,6 +159,7 @@ async function renderPreview() {
     const data = await api('POST', '/api/preview', { content: editor.value });
     preview.innerHTML = data.html;
     if (window.renderMermaid) window.renderMermaid(preview, currentTheme);
+    if (window.enhanceCodeBlocks) window.enhanceCodeBlocks(preview);
   } catch (_) {}
   if (!docId) localStorage.setItem('md.content', editor.value);
 }
@@ -310,6 +311,101 @@ function toast(msg) {
   toastTimer = setTimeout(() => (el.hidden = true), 2400);
 }
 
+// ---- Image upload (R2) ----
+let canUploadImage = false;
+
+async function loadConfig() {
+  try {
+    const data = await api('GET', '/api/config');
+    canUploadImage = !!data.imageUpload;
+  } catch (_) { canUploadImage = false; }
+  $('imgBtn').hidden = !canUploadImage;
+}
+
+const ALLOWED_IMG = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif'];
+
+// Sisipin teks di posisi cursor editor. Balikin posisi akhir sisipan.
+function insertAtCursor(text) {
+  const s = editor.selectionStart, e = editor.selectionEnd;
+  editor.value = editor.value.slice(0, s) + text + editor.value.slice(e);
+  const end = s + text.length;
+  editor.selectionStart = editor.selectionEnd = end;
+  editor.focus();
+  schedulePreview();
+  return { start: s, end };
+}
+
+// Ganti placeholder upload dgn hasil (URL final atau hapus kalau gagal).
+function replaceInEditor(token, replacement) {
+  const i = editor.value.indexOf(token);
+  if (i === -1) return;
+  editor.value = editor.value.slice(0, i) + replacement + editor.value.slice(i + token.length);
+  schedulePreview();
+}
+
+let uploadSeq = 0;
+async function uploadImageFile(file) {
+  if (!canUploadImage) return toast('Login dulu buat upload gambar.');
+  if (!ALLOWED_IMG.includes(file.type)) return toast('Tipe gambar ga didukung (PNG/JPG/GIF/WebP/AVIF).');
+  if (file.size > 10 * 1024 * 1024) return toast('Gambar kegedean (maks 10MB).');
+
+  const alt = (file.name || 'gambar').replace(/\.[^.]+$/, '').slice(0, 60);
+  const token = `![${alt}](uploading-${++uploadSeq}…)`;
+  insertAtCursor(token);
+  toast('Upload gambar…');
+
+  try {
+    const r = await fetch('/api/images', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+    replaceInEditor(token, `![${alt}](${data.url})`);
+    toast('Gambar ke-upload.');
+  } catch (e) {
+    replaceInEditor(token, '');
+    toast(e.message || 'Upload gagal.');
+  }
+}
+
+async function uploadImages(files) {
+  for (const f of files) {
+    if (f && f.type && f.type.startsWith('image/')) await uploadImageFile(f);
+  }
+}
+
+// Paste gambar dari clipboard.
+editor.addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const imgs = [...items].filter((it) => it.kind === 'file' && it.type.startsWith('image/'));
+  if (!imgs.length) return;
+  e.preventDefault();
+  uploadImages(imgs.map((it) => it.getAsFile()).filter(Boolean));
+});
+
+// Drag & drop gambar ke editor.
+editor.addEventListener('dragover', (e) => {
+  if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); editor.classList.add('drag-over'); }
+});
+editor.addEventListener('dragleave', () => editor.classList.remove('drag-over'));
+editor.addEventListener('drop', (e) => {
+  const files = e.dataTransfer?.files;
+  if (!files || !files.length) return;
+  e.preventDefault();
+  editor.classList.remove('drag-over');
+  uploadImages([...files]);
+});
+
+// Tombol toolbar -> file picker.
+$('imgBtn').addEventListener('click', () => $('imgInput').click());
+$('imgInput').addEventListener('change', (e) => {
+  uploadImages([...e.target.files]);
+  e.target.value = '';
+});
+
 // ---- Wire up ----
 themeSel.addEventListener('change', () => {
   applyTheme(themeSel.value);
@@ -347,6 +443,7 @@ editor.addEventListener('keydown', (e) => {
   await loadThemes();
   await loadFonts();
   await loadMe();
+  await loadConfig();
   const params = new URLSearchParams(location.search);
   const id = params.get('id');
   if (id && me) {

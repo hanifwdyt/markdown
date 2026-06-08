@@ -18,6 +18,7 @@ import {
   verifyUserPassword, isValidEmail,
 } from './lib/users.js';
 import { SESSION_SECRET, passcodeMatches, decryptPasscode } from './lib/crypto.js';
+import { uploadImage, r2Configured, ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from './lib/r2.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -437,6 +438,42 @@ app.get('/api/fonts', (_req, res) => {
   });
 });
 
+// ──────────────────────────── IMAGES ────────────────────────────
+// Upload gambar -> R2, balikin URL publik buat disisipin ke markdown.
+// Cuma user login (cegah abuse storage). Body = raw bytes gambar.
+const imageLimiter = rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
+
+app.post(
+  '/api/images',
+  imageLimiter,
+  requireAuth,
+  express.raw({ type: Object.keys(ALLOWED_IMAGE_TYPES), limit: MAX_IMAGE_BYTES }),
+  async (req, res) => {
+    if (!r2Configured()) return res.status(503).json({ error: 'Upload gambar belum dikonfigurasi.' });
+
+    const contentType = (req.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES[contentType]) {
+      return res.status(415).json({ error: 'Tipe gambar ga didukung (pakai PNG/JPG/GIF/WebP/AVIF).' });
+    }
+    const buffer = req.body;
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+      return res.status(400).json({ error: 'File kosong.' });
+    }
+
+    try {
+      const { url } = await uploadImage({ buffer, contentType, userId: req.user.id });
+      res.status(201).json({ url });
+    } catch (e) {
+      res.status(502).json({ error: e.message || 'Upload gagal.' });
+    }
+  }
+);
+
+// Config publik buat frontend (mis. apakah upload gambar nyala).
+app.get('/api/config', (req, res) => {
+  res.json({ imageUpload: r2Configured() && !!req.user });
+});
+
 // ──────────────────────────── VIEW ────────────────────────────
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -463,6 +500,7 @@ ${contentHtml}
   <a href="/"><svg class="docmark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6.5 3h7L18 7.5V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v4.5h4.5"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/></svg> markdown.hanif.app</a>
 </footer>
 <script src="/mermaid-run.js" defer></script>
+<script src="/copy-code.js" defer></script>
 </body>
 </html>`;
 }
