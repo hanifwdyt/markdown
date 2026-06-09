@@ -442,32 +442,36 @@ app.get('/api/fonts', (_req, res) => {
 // Upload gambar -> R2, balikin URL publik buat disisipin ke markdown.
 // Cuma user login (cegah abuse storage). Body = raw bytes gambar.
 const imageLimiter = rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
+const imageRaw = express.raw({ type: Object.keys(ALLOWED_IMAGE_TYPES), limit: MAX_IMAGE_BYTES });
 
-app.post(
-  '/api/images',
-  imageLimiter,
-  requireAuth,
-  express.raw({ type: Object.keys(ALLOWED_IMAGE_TYPES), limit: MAX_IMAGE_BYTES }),
-  async (req, res) => {
-    if (!r2Configured()) return res.status(503).json({ error: 'Upload gambar belum dikonfigurasi.' });
+// Validasi + upload ke R2. Body = raw bytes gambar (bukan multipart).
+async function processImageUpload(req, res, userId) {
+  if (!r2Configured()) return res.status(503).json({ error: 'Upload gambar belum dikonfigurasi.' });
 
-    const contentType = (req.get('content-type') || '').split(';')[0].trim().toLowerCase();
-    if (!ALLOWED_IMAGE_TYPES[contentType]) {
-      return res.status(415).json({ error: 'Tipe gambar ga didukung (pakai PNG/JPG/GIF/WebP/AVIF).' });
-    }
-    const buffer = req.body;
-    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
-      return res.status(400).json({ error: 'File kosong.' });
-    }
-
-    try {
-      const { url } = await uploadImage({ buffer, contentType, userId: req.user.id });
-      res.status(201).json({ url });
-    } catch (e) {
-      res.status(502).json({ error: e.message || 'Upload gagal.' });
-    }
+  const contentType = (req.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES[contentType]) {
+    return res.status(415).json({ error: 'Tipe gambar ga didukung (pakai PNG/JPG/GIF/WebP/AVIF).' });
   }
-);
+  const buffer = req.body;
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return res.status(400).json({ error: 'File kosong.' });
+  }
+
+  try {
+    const { url } = await uploadImage({ buffer, contentType, userId });
+    res.status(201).json({ url });
+  } catch (e) {
+    res.status(502).json({ error: e.message || 'Upload gagal.' });
+  }
+}
+
+// Web app: auth via cookie sesi (dipakai editor).
+app.post('/api/images', imageLimiter, requireAuth, imageRaw, (req, res) =>
+  processImageUpload(req, res, req.user.id));
+
+// Public API v1: auth via Bearer token (dipakai programatik).
+app.post('/api/v1/images', imageLimiter, requireApiAuth, imageRaw, (req, res) =>
+  processImageUpload(req, res, req.apiUser.id));
 
 // Config publik buat frontend (mis. apakah upload gambar nyala).
 app.get('/api/config', (req, res) => {

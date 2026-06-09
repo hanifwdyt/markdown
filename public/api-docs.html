@@ -208,9 +208,46 @@ curl -X PUT https://markdown.hanif.app/api/v1/docs/catatan-a \
   -H "Authorization: Bearer $TOKEN"</code></pre>
     <pre><code>{ "ok": true }</code></pre>
 
+    <h2>8 · Upload gambar</h2>
+    <p>Upload gambar ke storage (Cloudflare R2), dapet URL publik yang bisa lo embed ke markdown pakai <code>![alt](url)</code>. Body request = <strong>raw bytes gambar</strong> (bukan multipart/form-data), dan header <code>Content-Type</code> harus tipe gambarnya.</p>
+    <div class="ep"><span class="method post">POST</span><span class="path">/api/v1/images</span></div>
+    <h3>Header</h3>
+    <table class="fields">
+      <tr><th>Header</th><th>Keterangan</th></tr>
+      <tr><td><code>Authorization</code></td><td><strong>Wajib.</strong> <code>Bearer &lt;token&gt;</code></td></tr>
+      <tr><td><code>Content-Type</code></td><td><strong>Wajib.</strong> Tipe gambar: <code>image/png</code>, <code>image/jpeg</code>, <code>image/gif</code>, <code>image/webp</code>, atau <code>image/avif</code></td></tr>
+    </table>
+    <p class="note">Maks 10 MB. SVG ga didukung (alasan keamanan).</p>
+    <h3>Contoh</h3>
+    <pre><code># upload foto.png (perhatiin: --data-binary + Content-Type tipe gambar)
+curl -X POST https://markdown.hanif.app/api/v1/images \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: image/png" \
+  --data-binary @foto.png</code></pre>
+    <h3>Response <code>201</code></h3>
+    <pre><code>{ "url": "https://img.hanif.app/u3k2.../a8Fk2mZ9.png" }</code></pre>
+    <h3>Alur lengkap: upload gambar lalu push markdown</h3>
+    <pre><code># 1. upload gambar, ambil URL-nya
+IMG=$(curl -s -X POST https://markdown.hanif.app/api/v1/images \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: image/png" \
+  --data-binary @diagram.png | jq -r .url)
+
+# 2. push markdown yang nyisipin gambar itu
+curl -X POST https://markdown.hanif.app/api/v1/docs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"content\": $(jq -Rs . &lt;&lt;EOF
+# Laporan
+
+![diagram]($IMG)
+EOF
+)}"</code></pre>
+    <p class="note">Tipe ga didukung → <code>415</code>. File kosong → <code>400</code>. Kegedean → <code>413</code>. R2 belum dikonfigurasi → <code>503</code>.</p>
+
     <h2>Catatan</h2>
     <ul>
-      <li>Semua request JSON pakai <code>Content-Type: application/json</code>.</li>
+      <li>Semua request JSON pakai <code>Content-Type: application/json</code> — <strong>kecuali</strong> upload gambar (raw bytes, lihat #8).</li>
       <li>Endpoint <code>/api/v1/auth/token</code> di-rate-limit (anti brute force).</li>
       <li>Field <code>url</code> udah absolut & siap dibagikan — ga perlu nyusun sendiri.</li>
     </ul>
