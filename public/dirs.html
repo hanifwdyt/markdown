@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kumpulan dokumen · markdown.hanif.app</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .dir-form { display: grid; gap: 10px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 30px; }
+  .dir-form .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .dir-form input, .dir-form textarea {
+    font: inherit; padding: 9px 11px; border: 1px solid var(--line-2);
+    border-radius: var(--radius); background: var(--paper); color: var(--ink); width: 100%;
+  }
+  .dir-form textarea { resize: vertical; min-height: 56px; }
+  .dir-form .slug-wrap { display: flex; align-items: stretch; flex: 1 1 220px; }
+  .dir-form .slug-prefix { display: flex; align-items: center; padding: 0 10px; font-size: .8rem; color: var(--ink-3); background: var(--paper-3); border: 1px solid var(--line-2); border-right: 0; border-radius: var(--radius) 0 0 var(--radius); white-space: nowrap; }
+  .dir-form .slug-wrap input { border-radius: 0 var(--radius) var(--radius) 0; }
+  .dir-form .grow { flex: 2 1 240px; }
+  .dir-panel { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; margin-top: 8px; }
+  .dir-panel h3 { margin: 0 0 4px; font-size: .92rem; }
+  .dir-panel .sub { font-size: .78rem; color: var(--ink-3); margin: 0 0 12px; }
+  .member { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); margin-bottom: 6px; }
+  .member .t { font-size: .86rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .add-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-row select { flex: 1; font: inherit; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--paper); color: var(--ink); }
+  .count-pill { font-size: .72rem; color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 100px; padding: 1px 8px; margin-left: 8px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">
+    <svg class="docmark" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6.5 3h7L18 7.5V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v4.5h4.5"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/></svg>
+    <span class="brand-word">Markdown</span><span class="brand-tld">.hanif.app</span>
+  </a>
+  <div class="controls">
+    <a class="btn ghost" href="/app">Dokumen</a>
+    <a class="btn ghost" href="/api">API</a>
+    <a class="btn primary" href="/">+ Dokumen baru</a>
+    <div class="account" id="account"></div>
+  </div>
+</header>
+
+<main class="dash">
+  <h1>Kumpulan dokumen</h1>
+  <p class="dash-sub">Kelompokin dokumen jadi satu, lalu bagikan satu link: <code>markdown.hanif.app/dir/&lt;slug&gt;</code>.</p>
+
+  <form class="dir-form" id="createForm">
+    <div class="row">
+      <div class="slug-wrap">
+        <span class="slug-prefix">/dir/</span>
+        <input id="slug" name="slug" placeholder="tiktok" autocomplete="off" required>
+      </div>
+      <input class="grow" id="title" name="title" placeholder="Judul (opsional)" autocomplete="off">
+    </div>
+    <textarea id="description" name="description" placeholder="Deskripsi singkat (opsional, boleh markdown)"></textarea>
+    <div class="row" style="justify-content: flex-end;">
+      <button class="btn primary" type="submit">Bikin kumpulan</button>
+    </div>
+  </form>
+
+  <div id="list"><p class="muted">Memuat…</p></div>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/dirs.js"></script>
+</body>
+</html>

@@ -158,3 +158,34 @@ body {
 }
 .doc-footer a:hover { color: var(--fg); }
 .doc-footer .docmark { opacity: .7; }
+
+/* ── Halaman kumpulan dokumen (/dir/<slug>) ── */
+.dir-head { margin-bottom: 1.4em; }
+.dir-kicker {
+  font-family: var(--font-doc-sans); font-size: .74rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 .5em;
+}
+.dir-title { margin: 0; border: 0; padding: 0; font-size: 2.3em; }
+.dir-count { font-family: var(--font-doc-sans); font-size: .86rem; color: var(--muted); margin: .5em 0 0; }
+.dir-intro {
+  margin: 0 0 1.6em; padding-bottom: 1.4em;
+  border-bottom: 1px solid var(--border); color: var(--muted);
+}
+.dir-intro > :first-child { margin-top: 0; }
+.dir-intro > :last-child { margin-bottom: 0; }
+
+.dir-list { list-style: none; margin: 0; padding: 0; }
+.dir-item { margin: 0; border-bottom: 1px solid color-mix(in oklab, var(--border) 65%, transparent); }
+.dir-item:last-child { border-bottom: 0; }
+.dir-link {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  padding: 16px 6px; text-decoration: none; color: var(--fg);
+  transition: background .12s, padding-left .12s;
+}
+.dir-link:hover { background: color-mix(in oklab, var(--bg) 92%, var(--fg)); padding-left: 14px; }
+.dir-item-title { font-size: 1.12em; font-weight: 600; letter-spacing: -.01em; }
+.dir-lock { font-size: .78em; margin-left: .4em; opacity: .7; }
+.dir-item-meta {
+  flex: none; font-family: var(--font-doc-sans); font-size: .78rem; color: var(--muted);
+}
+.dir-empty { color: var(--muted); font-style: italic; padding: 16px 6px; list-style: none; }

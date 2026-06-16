@@ -44,6 +44,7 @@
   </a>
   <div class="controls">
     <a class="btn ghost" href="/app">Dokumen gue</a>
+    <a class="btn ghost" href="/dirs">Kumpulan</a>
     <a class="btn ghost" href="/">Editor</a>
   </div>
 </header>
@@ -244,6 +245,62 @@ curl -X POST https://markdown.hanif.app/api/v1/docs \
 EOF
 )}"</code></pre>
     <p class="note">Tipe ga didukung → <code>415</code>. File kosong → <code>400</code>. Kegedean → <code>413</code>. R2 belum dikonfigurasi → <code>503</code>.</p>
+
+    <h2>9 · Kumpulan dokumen (dir)</h2>
+    <p>Kelompokin beberapa dokumen jadi satu "dir", lalu bagikan satu link: <code>https://markdown.hanif.app/dir/&lt;slug&gt;</code> — halaman index berisi semua dokumen di dalamnya (publik; dokumen ber-passcode tetap ke-gate pas diklik). Satu dokumen boleh masuk ke beberapa dir.</p>
+
+    <h3>Bikin dir</h3>
+    <div class="ep"><span class="method post">POST</span><span class="path">/api/v1/dirs</span></div>
+    <table class="fields">
+      <tr><th>Field</th><th>Tipe</th><th>Keterangan</th></tr>
+      <tr><td><code>slug</code></td><td>string</td><td><strong>Wajib.</strong> URL dir (3–50 char, <code>a-z 0-9 -</code>). Reachable di <code>/dir/&lt;slug&gt;</code></td></tr>
+      <tr><td><code>title</code></td><td>string</td><td>Opsional — judul halaman</td></tr>
+      <tr><td><code>description</code></td><td>string</td><td>Opsional — intro (boleh markdown), dirender di atas daftar</td></tr>
+      <tr><td><code>theme</code> · <code>font</code></td><td>string</td><td>Opsional — tampilan halaman dir</td></tr>
+      <tr><td><code>docIds</code></td><td>string[]</td><td>Opsional — isi awal (id atau slug dokumen milik lo)</td></tr>
+    </table>
+    <pre><code>curl -X POST https://markdown.hanif.app/api/v1/dirs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"slug":"tiktok","title":"Semua soal TikTok","docIds":["catatan-a","k7p2q9m4a"]}'</code></pre>
+    <pre><code>{
+  "id": "au4dnvdac",
+  "slug": "tiktok",
+  "url": "https://markdown.hanif.app/dir/tiktok",
+  "title": "Semua soal TikTok",
+  "description": null,
+  "theme": "light", "font": "serif",
+  "doc_count": 2,
+  "docs": [ { "id": "...", "title": "...", "url": "...", "position": 0 } ]
+}</code></pre>
+    <p class="note">Slug dipakai dir lain → <code>409</code>. Format salah/reserved → <code>400</code>. Slug dir punya namespace sendiri (<code>/dir/...</code>), jadi ga bentrok sama custom link dokumen.</p>
+
+    <h3>List / ambil dir</h3>
+    <div class="ep"><span class="method get">GET</span><span class="path">/api/v1/dirs</span></div>
+    <div class="ep"><span class="method get">GET</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;</span></div>
+    <p class="note"><code>GET /api/v1/dirs</code> balikin ringkasan semua dir + <code>doc_count</code>. <code>GET /api/v1/dirs/&lt;id-atau-slug&gt;</code> balikin 1 dir + array <code>docs</code> lengkap (urut posisi).</p>
+
+    <h3>Tambah / keluarin dokumen</h3>
+    <div class="ep"><span class="method post">POST</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;/docs</span></div>
+    <div class="ep"><span class="method post">DELETE</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;/docs/&lt;doc-id-atau-slug&gt;</span></div>
+    <pre><code># tambah 1 dokumen ke dir
+curl -X POST https://markdown.hanif.app/api/v1/dirs/tiktok/docs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"docId":"k7p2q9m4a"}'</code></pre>
+    <pre><code>{ "ok": true, "added": true, "docs": [ ... ] }</code></pre>
+    <p class="note">Body <code>docId</code> bisa id atau slug, harus dokumen milik lo. Udah ada → <code>added:false</code> (idempoten).</p>
+
+    <h3>Urutan & metadata</h3>
+    <div class="ep"><span class="method post">PUT</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;</span></div>
+    <div class="ep"><span class="method post">PUT</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;/slug</span></div>
+    <div class="ep"><span class="method post">PUT</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;/docs</span></div>
+    <p class="note"><code>PUT /api/v1/dirs/&lt;…&gt;</code> update title/description/theme/font (field yang ga dikirim dipertahankan). <code>/slug</code> ganti URL dir. <code>/docs</code> dengan body <code>{"docIds":[...]}</code> set ulang urutan tampil.</p>
+
+    <h3>Hapus dir</h3>
+    <div class="ep"><span class="method post">DELETE</span><span class="path">/api/v1/dirs/&lt;id-atau-slug&gt;</span></div>
+    <pre><code>{ "ok": true }</code></pre>
+    <p class="note">Cuma hapus grup-nya — dokumen di dalamnya <strong>ga ikut kehapus</strong>.</p>
 
     <h2>Catatan</h2>
     <ul>

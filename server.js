@@ -14,6 +14,10 @@ import {
   resolveDoc, slugTaken, setSlug,
 } from './lib/store.js';
 import {
+  createDir, getDir, resolveDir, listDirs, listDocsInDir, updateDir, setDirSlug,
+  deleteDir, dirSlugTaken, addDocToDir, removeDocFromDir, reorderDir,
+} from './lib/dirs.js';
+import {
   registerUser, authenticate, createSession, destroySession, userFromSession,
   verifyUserPassword, isValidEmail,
 } from './lib/users.js';
@@ -30,7 +34,7 @@ const PROD = process.env.NODE_ENV === 'production';
 
 // Kata yang ga boleh jadi slug (bentrok sama route / file statis).
 const RESERVED_SLUGS = new Set([
-  'd', 'raw', 'api', 'app', 'login', 'logout', 'vendor', 'hljs', 'livez',
+  'd', 'dir', 'raw', 'api', 'app', 'login', 'logout', 'vendor', 'hljs', 'livez',
   'healthz', 'assets', 'static', 'public', 'admin', 'me', 'dashboard',
   'register', 'new', 'edit', 'settings', 'about', 'help', 'index', 'favicon',
   'robots', 'mermaid-run', 'auth', 'styles', 'view',
@@ -96,6 +100,7 @@ app.get('/healthz', (_req, res) => res.json({ ok: true }));
 // Halaman dengan URL bersih.
 app.get('/login', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/app', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/dirs', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dirs.html')));
 app.get('/api', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'api-docs.html')));
 
 // ──────────────────────────── AUTH ────────────────────────────
@@ -289,6 +294,119 @@ app.delete('/api/v1/docs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ───────────────────── PUBLIC API (v1) — DIRS ─────────────────────
+// Kumpulan dokumen. Sama persis fungsinya kayak web API /api/dirs,
+// tapi auth pakai Bearer token.
+
+// Resolusi dir milik pemegang token (by id ATAU slug).
+function apiOwnedDir(req, res) {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.apiUser.id) {
+    res.status(404).json({ error: 'Dir ga ketemu atau bukan punya lo.' });
+    return null;
+  }
+  return dir;
+}
+
+// List dir.
+app.get('/api/v1/dirs', requireApiAuth, (req, res) => {
+  const root = baseUrl(req);
+  res.json({ dirs: listDirs(req.apiUser.id).map((d) => dirShape(d, root)) });
+});
+
+// Bikin dir baru (+isi awal opsional via docIds[]).
+app.post('/api/v1/dirs', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const v = validateSlug(req.body?.slug);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (dirSlugTaken(v.slug, null)) return res.status(409).json({ error: 'Slug dir itu udah dipakai.' });
+
+  const title = req.body?.title ? String(req.body.title).slice(0, 120) : null;
+  const description = req.body?.description ? String(req.body.description).slice(0, 2000) : null;
+  const theme = resolveTheme(req.body?.theme);
+  const font = resolveFont(req.body?.font);
+  const id = createDir({ userId: req.apiUser.id, slug: v.slug, title, description, theme, font });
+
+  // Isi awal: tambahin doc yang valid & punya user.
+  if (Array.isArray(req.body?.docIds)) {
+    for (const ref of req.body.docIds) {
+      const doc = resolveDoc(String(ref));
+      if (doc && doc.user_id === req.apiUser.id) addDocToDir({ dirId: id, docId: doc.id });
+    }
+  }
+  const root = baseUrl(req);
+  res.status(201).json({ ...dirShape(getDir(id), root), docs: dirDocsShape(id, root) });
+});
+
+// Ambil 1 dir + daftar doc-nya.
+app.get('/api/v1/dirs/:id', requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const root = baseUrl(req);
+  res.json({ ...dirShape({ ...dir, doc_count: undefined }, root), docs: dirDocsShape(dir.id, root) });
+});
+
+// Update metadata dir.
+app.put('/api/v1/dirs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const title = req.body?.title !== undefined
+    ? (req.body.title ? String(req.body.title).slice(0, 120) : null) : dir.title;
+  const description = req.body?.description !== undefined
+    ? (req.body.description ? String(req.body.description).slice(0, 2000) : null) : dir.description;
+  const theme = req.body?.theme !== undefined ? resolveTheme(req.body.theme) : dir.theme;
+  const font = req.body?.font !== undefined ? resolveFont(req.body.font) : (dir.font || DEFAULT_FONT);
+  updateDir({ id: dir.id, userId: req.apiUser.id, title, description, theme, font });
+  res.json(dirShape(getDir(dir.id), baseUrl(req)));
+});
+
+// Ganti slug dir.
+app.put('/api/v1/dirs/:id/slug', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const v = validateSlug(req.body?.slug);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (dirSlugTaken(v.slug, dir.id)) return res.status(409).json({ error: 'Slug dir itu udah dipakai.' });
+  setDirSlug({ id: dir.id, userId: req.apiUser.id, slug: v.slug });
+  res.json({ ok: true, slug: v.slug, url: baseUrl(req) + `/dir/${v.slug}` });
+});
+
+// Hapus dir.
+app.delete('/api/v1/dirs/:id', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  deleteDir(dir.id, req.apiUser.id);
+  res.json({ ok: true });
+});
+
+// Tambah doc ke dir.
+app.post('/api/v1/dirs/:id/docs', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const doc = resolveDoc(String(req.body?.docId || ''));
+  if (!doc || doc.user_id !== req.apiUser.id) return res.status(404).json({ error: 'Dokumen ga ketemu atau bukan punya lo.' });
+  const added = addDocToDir({ dirId: dir.id, docId: doc.id });
+  res.status(added ? 201 : 200).json({ ok: true, added, docs: dirDocsShape(dir.id, baseUrl(req)) });
+});
+
+// Keluarin doc dari dir.
+app.delete('/api/v1/dirs/:id/docs/:docId', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const doc = resolveDoc(req.params.docId);
+  if (!doc) return res.status(404).json({ error: 'Dokumen ga ketemu.' });
+  removeDocFromDir({ dirId: dir.id, docId: doc.id });
+  res.json({ ok: true, docs: dirDocsShape(dir.id, baseUrl(req)) });
+});
+
+// Set ulang urutan doc dalam dir.
+app.put('/api/v1/dirs/:id/docs', apiWriteLimiter, requireApiAuth, (req, res) => {
+  const dir = apiOwnedDir(req, res);
+  if (!dir) return;
+  const ids = Array.isArray(req.body?.docIds) ? req.body.docIds.map(String) : [];
+  reorderDir({ dirId: dir.id, docIds: ids });
+  res.json({ ok: true, docs: dirDocsShape(dir.id, baseUrl(req)) });
+});
+
 // ──────────────────────────── DOCS ────────────────────────────
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 40, standardHeaders: true, legacyHeaders: false });
 
@@ -395,6 +513,136 @@ app.delete('/api/docs/:id', requireAuth, (req, res) => {
   const ok = deleteDoc(req.params.id, req.user.id);
   if (!ok) return res.status(404).json({ error: 'Ga ketemu.' });
   res.json({ ok: true });
+});
+
+// ──────────────────────────── DIRS ────────────────────────────
+// Dir = kumpulan dokumen publik di /dir/<slug>. Owner ngatur isinya;
+// halaman /dir/<slug> bisa diakses siapa aja (doc ber-passcode tetap ke-gate).
+
+// URL kanonik dir.
+function dirPath(dir) {
+  return `/dir/${dir.slug}`;
+}
+
+// Bentuk JSON dir buat response (tanpa konten doc).
+function dirShape(dir, root = '') {
+  return {
+    id: dir.id,
+    slug: dir.slug,
+    url: root + dirPath(dir),
+    title: dir.title || 'Untitled',
+    description: dir.description || null,
+    theme: dir.theme,
+    font: dir.font || DEFAULT_FONT,
+    doc_count: dir.doc_count,
+    created_at: dir.created_at,
+    updated_at: dir.updated_at,
+  };
+}
+
+// Daftar doc dalam dir buat response (ringkas, tanpa konten markdown).
+function dirDocsShape(dirId, root = '') {
+  return listDocsInDir(dirId).map((d) => ({
+    id: d.id,
+    title: d.title || 'Untitled',
+    url: root + (d.slug ? `/${d.slug}` : `/d/${d.id}`),
+    slug: d.slug || null,
+    has_passcode: d.has_passcode,
+    views: d.views,
+    position: d.position,
+    updated_at: d.updated_at,
+  }));
+}
+
+// List dir milik user.
+app.get('/api/dirs', requireAuth, (req, res) => {
+  res.json({ dirs: listDirs(req.user.id).map((d) => dirShape(d)) });
+});
+
+// Bikin dir baru. Wajib slug (buat URL publik), title/description opsional.
+app.post('/api/dirs', writeLimiter, requireAuth, (req, res) => {
+  const v = validateSlug(req.body?.slug);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (dirSlugTaken(v.slug, null)) return res.status(409).json({ error: 'Slug dir itu udah dipakai.' });
+
+  const title = req.body?.title ? String(req.body.title).slice(0, 120) : null;
+  const description = req.body?.description ? String(req.body.description).slice(0, 2000) : null;
+  const theme = resolveTheme(req.body?.theme);
+  const font = resolveFont(req.body?.font);
+  const id = createDir({ userId: req.user.id, slug: v.slug, title, description, theme, font });
+  res.status(201).json({ ...dirShape(getDir(id)), docs: [] });
+});
+
+// Ambil 1 dir + daftar doc-nya (buat halaman kelola).
+app.get('/api/dirs/:id', requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+  res.json({ ...dirShape({ ...dir, doc_count: undefined }), docs: dirDocsShape(dir.id) });
+});
+
+// Update metadata dir (title/description/theme/font).
+app.put('/api/dirs/:id', writeLimiter, requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+
+  const title = req.body?.title !== undefined
+    ? (req.body.title ? String(req.body.title).slice(0, 120) : null) : dir.title;
+  const description = req.body?.description !== undefined
+    ? (req.body.description ? String(req.body.description).slice(0, 2000) : null) : dir.description;
+  const theme = req.body?.theme !== undefined ? resolveTheme(req.body.theme) : dir.theme;
+  const font = req.body?.font !== undefined ? resolveFont(req.body.font) : (dir.font || DEFAULT_FONT);
+
+  updateDir({ id: dir.id, userId: req.user.id, title, description, theme, font });
+  res.json(dirShape(getDir(dir.id)));
+});
+
+// Ganti slug dir.
+app.put('/api/dirs/:id/slug', writeLimiter, requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+  const v = validateSlug(req.body?.slug);
+  if (v.error) return res.status(400).json({ error: v.error });
+  if (dirSlugTaken(v.slug, dir.id)) return res.status(409).json({ error: 'Slug dir itu udah dipakai.' });
+  setDirSlug({ id: dir.id, userId: req.user.id, slug: v.slug });
+  res.json({ ok: true, slug: v.slug, url: `/dir/${v.slug}` });
+});
+
+app.delete('/api/dirs/:id', requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+  deleteDir(dir.id, req.user.id);
+  res.json({ ok: true });
+});
+
+// Tambah dokumen ke dir. Body: { docId } (id atau slug doc, harus milik user).
+app.post('/api/dirs/:id/docs', writeLimiter, requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+
+  const doc = resolveDoc(String(req.body?.docId || ''));
+  if (!doc || doc.user_id !== req.user.id) return res.status(404).json({ error: 'Dokumen ga ketemu atau bukan punya lo.' });
+
+  const added = addDocToDir({ dirId: dir.id, docId: doc.id });
+  res.status(added ? 201 : 200).json({ ok: true, added, docs: dirDocsShape(dir.id) });
+});
+
+// Keluarin dokumen dari dir.
+app.delete('/api/dirs/:id/docs/:docId', writeLimiter, requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+  const doc = resolveDoc(req.params.docId);
+  if (!doc) return res.status(404).json({ error: 'Dokumen ga ketemu.' });
+  removeDocFromDir({ dirId: dir.id, docId: doc.id });
+  res.json({ ok: true, docs: dirDocsShape(dir.id) });
+});
+
+// Set ulang urutan doc dalam dir. Body: { docIds: [...] }.
+app.put('/api/dirs/:id/docs', writeLimiter, requireAuth, (req, res) => {
+  const dir = resolveDir(req.params.id);
+  if (!dir || dir.user_id !== req.user.id) return res.status(404).json({ error: 'Dir ga ketemu.' });
+  const ids = Array.isArray(req.body?.docIds) ? req.body.docIds.map(String) : [];
+  reorderDir({ dirId: dir.id, docIds: ids });
+  res.json({ ok: true, docs: dirDocsShape(dir.id) });
 });
 
 // Unlock dokumen ber-passcode → set signed cookie biar ga ditanya terus.
@@ -541,6 +789,70 @@ app.get('/raw/:id', (req, res) => {
   if (!canView(req, doc)) return res.status(401).send('Protected. Unlock via ' + docUrl(doc));
   bumpView(doc.id);
   res.type('text/plain; charset=utf-8').send(doc.content);
+});
+
+// ────────────────────────── DIR VIEW ──────────────────────────
+// Halaman publik kumpulan dokumen: markdown.hanif.app/dir/<slug>.
+function dirViewPage({ dir, docs }) {
+  const t = resolveTheme(dir.theme);
+  const font = resolveFont(dir.font);
+  const title = dir.title || dir.slug;
+  const intro = dir.description ? renderMarkdown(dir.description) : '';
+
+  const items = docs.length
+    ? docs.map((d) => {
+        const href = d.slug ? `/${d.slug}` : `/d/${d.id}`;
+        const lock = d.has_passcode
+          ? '<span class="dir-lock" title="Perlu passcode">🔒</span>' : '';
+        return `<li class="dir-item">
+  <a class="dir-link" href="${href}">
+    <span class="dir-item-title">${escapeHtml(d.title || 'Untitled')}${lock}</span>
+    <span class="dir-item-meta">${d.views} views</span>
+  </a>
+</li>`;
+      }).join('\n')
+    : '<li class="dir-empty">Belum ada dokumen di sini.</li>';
+
+  return `<!DOCTYPE html>
+<html lang="id" data-theme="${t}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)} · markdown.hanif.app</title>
+<link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
+<link rel="stylesheet" href="/view.css">
+<style>${themeVarsCss(t)}
+:root{ --font-doc: ${fontStack(font)}; }</style>
+</head>
+<body>
+<main class="doc dir-page">
+<header class="dir-head">
+  <p class="dir-kicker">Kumpulan dokumen</p>
+  <h1 class="dir-title">${escapeHtml(title)}</h1>
+  <p class="dir-count">${docs.length} dokumen</p>
+</header>
+${intro ? `<section class="dir-intro">${intro}</section>` : ''}
+<ul class="dir-list">
+${items}
+</ul>
+</main>
+<footer class="doc-footer">
+  <a href="/"><svg class="docmark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6.5 3h7L18 7.5V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M13 3v4.5h4.5"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/></svg> markdown.hanif.app</a>
+</footer>
+<script src="/mermaid-run.js" defer></script>
+</body>
+</html>`;
+}
+
+app.get('/dir/:slug', (req, res) => {
+  const dir = resolveDir(req.params.slug);
+  if (!dir) return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  const theme = resolveTheme(req.query.theme || dir.theme);
+  const font = resolveFont(req.query.font || dir.font);
+  res.type('html').send(dirViewPage({
+    dir: { ...dir, theme, font },
+    docs: listDocsInDir(dir.id),
+  }));
 });
 
 // Shortcut top-level: markdown.hanif.app/<slug>. Didaftarin PALING AKHIR biar
