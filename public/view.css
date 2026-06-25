@@ -130,7 +130,7 @@ body {
 .doc .hljs-strong { font-weight: 700; }
 
 .doc table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-family: var(--font-doc-sans); font-size: .92em; }
-.doc th, .doc td { border: 1px solid var(--border); padding: 8px 13px; }
+.doc th, .doc td { border: 1px solid var(--border); padding: 8px 13px; white-space: nowrap; }
 .doc th { font-weight: 600; background: var(--code-bg); }
 
 .doc img { max-width: 100%; border-radius: 4px; }
