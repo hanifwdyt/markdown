@@ -159,6 +159,30 @@ body {
 .doc-footer a:hover { color: var(--fg); }
 .doc-footer .docmark { opacity: .7; }
 
+/* ── Auto-scroll floating button ── */
+#auto-scroll-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border, rgba(128,128,128,.3));
+  background: var(--bg, #fff);
+  color: var(--muted, #888);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .45;
+  transition: opacity .15s, color .15s, border-color .15s;
+  z-index: 200;
+}
+#auto-scroll-btn:hover { opacity: .85; color: var(--fg, #222); }
+#auto-scroll-btn.active { opacity: .9; color: var(--link, #0066cc); border-color: var(--link, #0066cc); }
+
 /* ── Halaman kumpulan dokumen (/dir/<slug>) ── */
 .dir-head { margin-bottom: 1.4em; }
 .dir-kicker {

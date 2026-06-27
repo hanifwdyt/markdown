@@ -753,6 +753,7 @@ ${contentHtml}
 </footer>
 <script src="/mermaid-run.js" defer></script>
 <script src="/copy-code.js" defer></script>
+<script src="/auto-scroll.js" defer></script>
 </body>
 </html>`;
 }
