@@ -101,7 +101,7 @@
         const { done, value } = await reader.read();
         if (done) break;
         answer += dec.decode(value, { stream: true });
-        bubble.textContent = answer;
+        bubble.innerHTML = renderLite(answer);
         scrollBottom();
       }
       if (!answer.trim()) throw new Error('Jawaban kosong, coba lagi.');
@@ -130,5 +130,18 @@
   function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }
   function escape(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  // Markdown ringan buat jawaban AI: bold/italic/code/bullet/heading.
+  // Semua HTML di-escape DULU, jadi aman di-innerHTML (ga ada tag mentah lolos).
+  function renderLite(text) {
+    let h = escape(text);
+    h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[\s(])\*([^*\s][^*\n]*)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+    h = h.replace(/^#{1,4} (.+)$/gm, '<strong>$1</strong>'); // heading → bold aja
+    h = h.replace(/^[-*] /gm, '• '); // bullet list
+    h = h.replace(/^(\d+)\. /gm, '$1. ');
+    return h;
   }
 })();

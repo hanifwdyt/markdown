@@ -137,6 +137,15 @@ body[data-chat-doc] #auto-scroll-btn { bottom: 86px; right: 26px; transition: ri
   padding: 8px 12px;
 }
 .chat-msg.assistant { align-self: flex-start; padding: 0 2px; }
+.chat-msg.assistant code {
+  font-family: var(--font-doc-mono, ui-monospace, Menlo, monospace);
+  font-size: .88em;
+  background: color-mix(in oklab, var(--fg) 7%, var(--bg));
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.chat-msg.assistant strong { font-weight: 650; }
 .chat-msg.assistant.thinking::after {
   content: '▍';
   animation: chat-blink 1s steps(2) infinite;
