@@ -762,7 +762,7 @@ function viewPage({ title, theme, font, contentHtml, docId }) {
 <html lang="id" data-theme="${t}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${escapeHtml(title)} · markdown.hanif.app</title>
 <link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
 <link rel="stylesheet" href="/view.css">
@@ -845,7 +845,7 @@ function dirViewPage({ dir, docs }) {
 <html lang="id" data-theme="${t}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${escapeHtml(title)} · markdown.hanif.app</title>
 <link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
 <link rel="stylesheet" href="/view.css">

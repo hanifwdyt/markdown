@@ -59,8 +59,57 @@ body.chat-open .chat-fab { opacity: 0; pointer-events: none; }
 }
 body.chat-open .chat-panel { transform: translateX(0); }
 
+/* Backdrop (cuma kepake di mobile) */
+.chat-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 290;
+  background: rgba(24,24,20,.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .28s ease;
+}
+
+/* Grip bar bottom sheet (cuma mobile) */
+.chat-grip { display: none; }
+
+/* ── Mobile: bottom sheet ── */
 @media (max-width: 899px) {
-  .chat-panel { width: 100vw; border-left: none; }
+  .chat-panel {
+    top: auto;
+    left: 0;
+    width: 100vw;
+    height: 90vh;
+    height: 90dvh;
+    border-left: none;
+    border-top: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(24,24,20,.22);
+    transform: translateY(100%);
+  }
+  body.chat-open .chat-panel { transform: translateY(0); }
+  body.chat-open .chat-backdrop { opacity: 1; pointer-events: auto; }
+  body.chat-open { overflow: hidden; } /* dokumen di belakang ga ikut ke-scroll */
+
+  .chat-grip {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    margin: 10px auto 0;
+    background: color-mix(in oklab, var(--fg) 22%, var(--bg));
+    flex-shrink: 0;
+  }
+  .chat-head { padding-top: 8px; }
+
+  /* 16px = anti auto-zoom iOS pas fokus ke input */
+  .chat-input { font-size: 16px; }
+  .chat-msgs { font-size: 15px; }
+
+  /* Hormati home-indicator iPhone */
+  .chat-foot { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .chat-fab { bottom: calc(20px + env(safe-area-inset-bottom)); }
+
   body.chat-open #auto-scroll-btn { display: none; }
 }
 

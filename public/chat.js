@@ -13,9 +13,12 @@
   fab.setAttribute('aria-label', 'Buka chat AI');
   fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
 
+  const backdrop = el('div', 'chat-backdrop');
+
   const panel = el('aside', 'chat-panel');
   panel.setAttribute('aria-label', 'Chat AI dokumen');
   panel.innerHTML = `
+<div class="chat-grip"></div>
 <div class="chat-head">
   <div class="chat-head-title">Tanya dokumen ini
     <span class="chat-head-sub">${escape(document.title.replace(/ · markdown\.hanif\.app$/, ''))}</span>
@@ -37,7 +40,7 @@
 </form>
 <div class="chat-foot">AI bisa salah — cek ke dokumen aslinya.</div>`;
 
-  document.body.append(fab, panel);
+  document.body.append(fab, backdrop, panel);
 
   const msgsBox = panel.querySelector('.chat-msgs');
   const form = panel.querySelector('.chat-form');
@@ -46,11 +49,22 @@
   let busy = false;
 
   // ── Open / close ──
-  fab.addEventListener('click', () => { document.body.classList.add('chat-open'); input.focus(); });
-  panel.querySelector('.chat-close').addEventListener('click', () => document.body.classList.remove('chat-open'));
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') document.body.classList.remove('chat-open');
-  });
+  const isMobile = () => window.matchMedia('(max-width: 899px)').matches;
+  const open = () => {
+    document.body.classList.add('chat-open');
+    if (!isMobile()) input.focus(); // mobile: jangan langsung munculin keyboard
+  };
+  fab.addEventListener('click', open);
+  const close = () => document.body.classList.remove('chat-open');
+  panel.querySelector('.chat-close').addEventListener('click', close);
+  backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+  // Keyboard mobile nutupin input → scroll ulang ke bawah pas fokus.
+  input.addEventListener('focus', () => setTimeout(scrollBottom, 300));
+
+  // Deep-link: /<slug>#chat langsung buka panel.
+  if (location.hash === '#chat') open();
 
   // Suggestion chips → langsung kirim.
   panel.querySelectorAll('.chat-suggest').forEach((b) =>
