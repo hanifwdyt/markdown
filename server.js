@@ -23,6 +23,7 @@ import {
 } from './lib/users.js';
 import { SESSION_SECRET, passcodeMatches, decryptPasscode } from './lib/crypto.js';
 import { uploadImage, r2Configured, ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from './lib/r2.js';
+import { chatConfigured, sanitizeMessages, streamChat } from './lib/chat.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -726,13 +727,37 @@ app.get('/api/config', (req, res) => {
   res.json({ imageUpload: r2Configured() && !!req.user });
 });
 
+// ──────────────────────────── CHAT AI ────────────────────────────
+// Tanya-jawab soal isi SATU dokumen (scope dikunci di lib/chat.js).
+// Publik (siapa pun yang bisa lihat dokumennya), makanya rate limit ketat.
+const chatLimiter = rateLimit({ windowMs: 10 * 60_000, max: 20, standardHeaders: true, legacyHeaders: false });
+
+app.post('/api/chat', chatLimiter, async (req, res) => {
+  if (!chatConfigured()) return res.status(503).json({ error: 'Chat AI belum dikonfigurasi.' });
+
+  const doc = resolveDoc(String(req.body?.doc || ''));
+  if (!doc) return res.status(404).json({ error: 'Dokumen tidak ditemukan.' });
+  if (!canView(req, doc)) return res.status(401).json({ error: 'Dokumen terkunci.' });
+
+  const messages = sanitizeMessages(req.body?.messages);
+  if (!messages) return res.status(400).json({ error: 'Format pesan tidak valid.' });
+
+  try {
+    await streamChat({ doc, messages, res });
+  } catch (e) {
+    if (!res.headersSent) res.status(502).json({ error: e.message || 'Chat gagal.' });
+    else res.end();
+  }
+});
+
 // ──────────────────────────── VIEW ────────────────────────────
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-function viewPage({ title, theme, font, contentHtml }) {
+function viewPage({ title, theme, font, contentHtml, docId }) {
   const t = resolveTheme(theme);
+  const chat = docId && chatConfigured();
   return `<!DOCTYPE html>
 <html lang="id" data-theme="${t}">
 <head>
@@ -741,10 +766,11 @@ function viewPage({ title, theme, font, contentHtml }) {
 <title>${escapeHtml(title)} · markdown.hanif.app</title>
 <link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
 <link rel="stylesheet" href="/view.css">
+${chat ? '<link rel="stylesheet" href="/chat.css">' : ''}
 <style>${themeVarsCss(t)}
 :root{ --font-doc: ${fontStack(font)}; }</style>
 </head>
-<body>
+<body${chat ? ` data-chat-doc="${escapeHtml(docId)}"` : ''}>
 <main class="doc">
 ${contentHtml}
 </main>
@@ -754,6 +780,7 @@ ${contentHtml}
 <script src="/mermaid-run.js" defer></script>
 <script src="/copy-code.js" defer></script>
 <script src="/auto-scroll.js" defer></script>
+${chat ? '<script src="/chat.js" defer></script>' : ''}
 </body>
 </html>`;
 }
@@ -773,7 +800,7 @@ function serveDoc(req, res, doc) {
   bumpView(doc.id);
   const theme = resolveTheme(req.query.theme || doc.theme);
   const font = resolveFont(req.query.font || doc.font);
-  res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, font, contentHtml: renderMarkdown(doc.content) }));
+  res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, font, contentHtml: renderMarkdown(doc.content), docId: doc.id }));
 }
 
 // View page by id atau slug.

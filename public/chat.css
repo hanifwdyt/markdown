@@ -1,0 +1,217 @@
+/* Chat AI per-dokumen · Manuscript style (monokrom, ikut variabel tema).
+ * Desktop: panel nempel kanan, dokumen geser kiri (padding-right di body).
+ * Mobile (<900px): panel full-screen overlay.
+ */
+
+:root {
+  --chat-w: 400px;
+  --chat-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body { transition: padding-right .28s ease; }
+
+@media (min-width: 900px) {
+  body.chat-open { padding-right: var(--chat-w); }
+}
+
+/* ── Tombol floating kanan bawah ── */
+.chat-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 250;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--fg) 25%, transparent);
+  background: var(--fg);
+  color: var(--bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(24,24,20,.18), 0 10px 28px rgba(24,24,20,.16);
+  transition: transform .18s ease, box-shadow .18s ease, opacity .2s ease;
+}
+.chat-fab:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(24,24,20,.2), 0 14px 34px rgba(24,24,20,.2); }
+.chat-fab svg { width: 24px; height: 24px; }
+body.chat-open .chat-fab { opacity: 0; pointer-events: none; }
+
+/* ── Panel ── */
+.chat-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  width: var(--chat-w);
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  border-left: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  box-shadow: -8px 0 32px rgba(24,24,20,.10);
+  font-family: var(--chat-font-ui);
+  font-size: 14px;
+  transform: translateX(100%);
+  transition: transform .28s ease;
+}
+body.chat-open .chat-panel { transform: translateX(0); }
+
+@media (max-width: 899px) {
+  .chat-panel { width: 100vw; border-left: none; }
+  body.chat-open #auto-scroll-btn { display: none; }
+}
+
+/* Tombol auto-scroll (view.css) juga di kanan bawah — geser ke atas FAB
+ * biar ga tabrakan, dan ikut geser pas panel kebuka di desktop. */
+body[data-chat-doc] #auto-scroll-btn { bottom: 86px; right: 26px; transition: right .28s ease; }
+@media (min-width: 900px) {
+  body.chat-open #auto-scroll-btn { right: calc(var(--chat-w) + 26px); }
+}
+
+/* ── Header ── */
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-head-title {
+  font-family: var(--font-doc-serif, Georgia, serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  flex: 1;
+  min-width: 0;
+}
+.chat-head-sub {
+  display: block;
+  font-family: var(--chat-font-ui);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-close {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.chat-close:hover { color: var(--fg); border-color: var(--fg); }
+
+/* ── Area pesan ── */
+.chat-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-msg {
+  max-width: 92%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: color-mix(in oklab, var(--fg) 8%, var(--bg));
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 10px 10px 3px 10px;
+  padding: 8px 12px;
+}
+.chat-msg.assistant { align-self: flex-start; padding: 0 2px; }
+.chat-msg.assistant.thinking::after {
+  content: '▍';
+  animation: chat-blink 1s steps(2) infinite;
+  color: var(--muted);
+}
+@keyframes chat-blink { 50% { opacity: 0; } }
+.chat-msg.error { color: var(--muted); font-style: italic; font-size: 13px; }
+
+/* ── Empty state ── */
+.chat-empty {
+  margin: auto 0;
+  text-align: center;
+  color: var(--muted);
+  padding: 0 12px;
+}
+.chat-empty p { margin: 0 0 14px; font-size: 13px; line-height: 1.6; }
+.chat-suggest {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.chat-suggest:hover { border-color: var(--fg); }
+
+/* ── Input ── */
+.chat-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 9px 12px;
+  max-height: 120px;
+}
+.chat-input:focus { outline: none; border-color: var(--fg); }
+.chat-send {
+  align-self: flex-end;
+  border: 1px solid var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.chat-send:disabled { opacity: .4; cursor: default; }
+.chat-send svg { width: 16px; height: 16px; }
+
+.chat-foot {
+  padding: 0 16px 10px;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+  flex-shrink: 0;
+}
