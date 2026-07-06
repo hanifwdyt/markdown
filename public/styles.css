@@ -67,6 +67,16 @@ body {
 .brand-tld { font-size: .82rem; color: var(--ink-3); letter-spacing: .01em; }
 
 .controls { display: flex; align-items: center; gap: 10px; }
+
+/* Segmented toggle Tulis/Preview — cuma muncul di mobile (lihat @media) */
+.view-toggle { display: none; gap: 2px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 2px; }
+.vt-btn {
+  border: 0; background: none; font: inherit; font-size: .82rem; font-weight: 500;
+  padding: 6px 14px; border-radius: calc(var(--radius) - 1px); cursor: pointer; color: var(--ink-3);
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+.vt-btn.active { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(24,24,20,.08); }
+.vt-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .field { display: flex; align-items: center; gap: 7px; font-size: .8rem; color: var(--ink-3); }
 .field select {
   font: inherit;
@@ -119,7 +129,7 @@ body {
 
 /* ── Editor split ─────────────────────────────────────── */
 .split { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-.pane { min-height: 0; overflow: auto; }
+.pane { min-height: 0; min-width: 0; overflow: auto; }
 .editor-pane { border-right: 1px solid var(--line); background: var(--paper); }
 
 #editor {
@@ -327,12 +337,41 @@ body.centered {
 
 /* ── Responsive ───────────────────────────────────────── */
 @media (max-width: 720px) {
-  .split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  .editor-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  /* Topbar: brand + toggle di baris 1, controls full-width di baris 2 */
+  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .view-toggle { display: inline-flex; }
+  .controls { width: 100%; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
   .controls .field span, .acct-email { display: none; }
-  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
+  .field { flex: 1 1 auto; }
+  .field select { width: 100%; font-size: 16px; padding: 8px 10px; } /* 16px = anti zoom iOS */
+  .controls .btn { flex: 1 1 auto; }
+  .account { width: 100%; justify-content: flex-end; }
+
+  /* Editor: satu pane aktif (toggle), bukan dua-duanya kepencet */
+  .split { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .editor-pane, .preview-pane { grid-area: 1 / 1; }
+  .editor-pane { border-right: 0; }
+  .split .preview-pane { display: none; }
+  .split.show-preview .editor-pane { display: none; }
+  .split.show-preview .preview-pane { display: block; }
+  #editor { font-size: 16px; padding: 22px clamp(16px, 5vw, 28px); } /* 16px anti zoom iOS */
+  .preview-pane { padding: clamp(16px, 4vw, 28px) clamp(12px, 3vw, 20px); }
+  .preview-pane .doc { padding: clamp(24px, 6vw, 40px) clamp(20px, 5vw, 32px) 56px; }
+
+  /* Dashboard rows */
   .doc-row { flex-direction: column; align-items: stretch; }
   .doc-row-actions { flex-wrap: wrap; }
+
+  /* Modal full-ish width */
+  .modal { padding: 12px; }
+  .modal-card { padding: 22px 20px; }
+}
+
+@media (max-width: 420px) {
+  .brand-tld { display: none; }
+  .vt-btn { padding: 6px 11px; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions .btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

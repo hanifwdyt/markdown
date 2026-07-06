@@ -429,6 +429,19 @@ $('revealModal').addEventListener('click', (e) => { if (e.target === $('revealMo
 $('revealSubmit').addEventListener('click', submitReveal);
 $('acctPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitReveal(); });
 
+// ---- Mobile view toggle (Tulis / Preview) ----
+const splitEl = document.querySelector('.split');
+function setMobileView(showPreview) {
+  splitEl.classList.toggle('show-preview', showPreview);
+  $('vtWrite').classList.toggle('active', !showPreview);
+  $('vtWrite').setAttribute('aria-selected', String(!showPreview));
+  $('vtPreview').classList.toggle('active', showPreview);
+  $('vtPreview').setAttribute('aria-selected', String(showPreview));
+  if (showPreview) renderPreview(); // pastiin preview fresh pas dibuka
+}
+$('vtWrite').addEventListener('click', () => setMobileView(false));
+$('vtPreview').addEventListener('click', () => setMobileView(true));
+
 editor.addEventListener('keydown', (e) => {
   if (e.key === 'Tab') {
     e.preventDefault();

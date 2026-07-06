@@ -34,6 +34,16 @@
   table.fields code { background: none; border: 0; padding: 0; color: var(--ink); }
   .note { font-size: .9rem; color: var(--ink-3); }
   .tag { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-3); }
+  @media (max-width: 600px) {
+    .api-wrap { padding: 20px 12px 64px; }
+    .api-sheet { padding: 26px 18px; border-radius: 0; border-left: 0; border-right: 0; }
+    .api-sheet h1 { font-size: 1.9rem; }
+    .api-sheet h2 { font-size: 1.28rem; }
+    .lede { font-size: 1rem; }
+    /* tabel field scroll horizontal biar ga mecahin layout */
+    table.fields { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    pre { padding: 14px; }
+  }
 </style>
 </head>
 <body>

@@ -213,3 +213,30 @@ body {
   flex: none; font-family: var(--font-doc-sans); font-size: .78rem; color: var(--muted);
 }
 .dir-empty { color: var(--muted); font-style: italic; padding: 16px 6px; list-style: none; }
+
+/* ── Mobile: lembar kertas jadi full-width, heading lebih ringkas ── */
+@media (max-width: 600px) {
+  body { font-size: 16.5px; line-height: 1.68; }
+  .doc {
+    margin: 0;
+    max-width: none;
+    border-left: 0; border-right: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 28px 20px 48px;
+  }
+  .doc h1 { font-size: 1.72em; }
+  .doc h2 { font-size: 1.4em; }
+  .doc h3 { font-size: 1.18em; }
+  .doc pre { padding: 14px 14px; border-radius: 6px; }
+  .doc ul, .doc ol { padding-left: 1.25em; }
+  .doc blockquote { padding: .2em .9em; }
+
+  .dir-title { font-size: 1.85em; }
+  /* judul + meta numpuk biar ga kepencet di layar sempit */
+  .dir-link { flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px 4px; }
+  .dir-link:hover { padding-left: 4px; }
+  .dir-item-meta { font-size: .74rem; }
+
+  .doc-footer { margin-left: 16px; margin-right: 16px; }
+}
