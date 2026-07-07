@@ -1,0 +1,14 @@
+# Litestream — streaming backup SQLite ke Cloudflare R2 (bucket privat
+# markdown-db-backup, JANGAN pake markdown-img yang publik).
+# Kreden via env (di-set di Coolify): LITESTREAM_ACCESS_KEY_ID / SECRET.
+dbs:
+  - path: /data/markdown.db
+    replicas:
+      - type: s3
+        bucket: markdown-db-backup
+        path: markdown-db
+        endpoint: https://068fb93932ce92b0aceeae14b6828d44.r2.cloudflarestorage.com
+        region: auto
+        # R2 ga support batch delete ala S3, wajib off (dokumentasi litestream)
+        force-path-style: true
+        retention: 720h # simpen snapshot 30 hari

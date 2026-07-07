@@ -30,5 +30,21 @@ services:
       retries: 3
       start_period: 10s
 
+  # Streaming backup SQLite -> R2 privat (litestream.yml). Inert sampai
+  # profile "backup" diaktifin ATAU baris profiles dihapus + kreden keset:
+  # LITESTREAM_ACCESS_KEY_ID + LITESTREAM_SECRET_ACCESS_KEY (R2 token
+  # Object R&W scoped ke bucket markdown-db-backup, bikin di dashboard CF).
+  litestream:
+    image: litestream/litestream:0.3
+    restart: unless-stopped
+    profiles: ["backup"]
+    command: replicate -config /etc/litestream.yml
+    environment:
+      - LITESTREAM_ACCESS_KEY_ID=${LITESTREAM_ACCESS_KEY_ID}
+      - LITESTREAM_SECRET_ACCESS_KEY=${LITESTREAM_SECRET_ACCESS_KEY}
+    volumes:
+      - markdown-data:/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+
 volumes:
   markdown-data:
