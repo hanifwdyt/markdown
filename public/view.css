@@ -240,3 +240,42 @@ body {
 
   .doc-footer { margin-left: 16px; margin-right: 16px; }
 }
+
+/* ── Daftar Isi + anchor heading ── */
+.doc :is(h2,h3,h4,h5,h6) { scroll-margin-top: 24px; }
+.h-anchor {
+  margin-left: .4em;
+  font-size: .75em;
+  color: var(--muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.doc :is(h2,h3,h4,h5,h6):hover .h-anchor { opacity: .8; }
+.h-anchor:hover { color: var(--fg); opacity: 1 !important; }
+@media (hover: none) { .h-anchor { opacity: .35; } } /* touch: selalu keliatan tipis */
+
+.doc-toc {
+  margin: 1.6em 0 2em;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--bg) 96%, var(--fg));
+  font-family: var(--font-doc-sans);
+  font-size: .82rem;
+}
+.doc-toc summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-size: .72rem;
+  color: var(--muted);
+  user-select: none;
+}
+.doc-toc summary:hover { color: var(--fg); }
+.doc-toc ol { list-style: none; margin: 0; padding: 2px 14px 12px; }
+.doc-toc li { margin: 0; padding: 3px 0; line-height: 1.45; }
+.doc-toc li.toc-sub { padding-left: 18px; }
+.doc-toc a { color: var(--fg); text-decoration: none; border-bottom: 1px solid transparent; }
+.doc-toc a:hover { border-bottom-color: var(--muted); }

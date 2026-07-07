@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-import { renderMarkdown, extractTitle } from './lib/render.js';
+import { renderMarkdown, extractTitle, extractDescription } from './lib/render.js';
 import { resolveTheme, themeVarsCss, hljsTheme, THEMES, DEFAULT_THEME } from './lib/themes.js';
 import { resolveFont, fontStack, FONTS, DEFAULT_FONT } from './lib/fonts.js';
 import {
@@ -755,15 +755,28 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-function viewPage({ title, theme, font, contentHtml, docId }) {
+function viewPage({ title, theme, font, contentHtml, docId, description, canonical }) {
   const t = resolveTheme(theme);
   const chat = docId && chatConfigured();
+  const og = description && canonical
+    ? `<meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${escapeHtml(canonical)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="markdown.hanif.app">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:url" content="${escapeHtml(canonical)}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">`
+    : '';
   return `<!DOCTYPE html>
 <html lang="id" data-theme="${t}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${escapeHtml(title)} · markdown.hanif.app</title>
+${og}
 <link rel="stylesheet" href="/hljs/${hljsTheme(t)}.min.css">
 <link rel="stylesheet" href="/view.css">
 ${chat ? '<link rel="stylesheet" href="/chat.css">' : ''}
@@ -780,6 +793,7 @@ ${contentHtml}
 <script src="/mermaid-run.js" defer></script>
 <script src="/copy-code.js" defer></script>
 <script src="/auto-scroll.js" defer></script>
+<script src="/toc.js" defer></script>
 ${chat ? '<script src="/chat.js" defer></script>' : ''}
 </body>
 </html>`;
@@ -800,7 +814,15 @@ function serveDoc(req, res, doc) {
   bumpView(doc.id);
   const theme = resolveTheme(req.query.theme || doc.theme);
   const font = resolveFont(req.query.font || doc.font);
-  res.type('html').send(viewPage({ title: doc.title || 'Untitled', theme, font, contentHtml: renderMarkdown(doc.content), docId: doc.id }));
+  res.type('html').send(viewPage({
+    title: doc.title || 'Untitled',
+    theme,
+    font,
+    contentHtml: renderMarkdown(doc.content),
+    docId: doc.id,
+    description: extractDescription(doc.content),
+    canonical: baseUrl(req) + docUrl(doc),
+  }));
 }
 
 // View page by id atau slug.
