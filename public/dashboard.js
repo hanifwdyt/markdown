@@ -24,6 +24,22 @@ function toast(msg) {
   toastTimer = setTimeout(() => (el.hidden = true), 2400);
 }
 
+function toastAction(msg, label, onAction, ms = 6000) {
+  const el = $('toast');
+  el.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo';
+  btn.type = 'button';
+  btn.textContent = label;
+  btn.addEventListener('click', () => { el.hidden = true; onAction(); });
+  el.append(span, btn);
+  el.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.hidden = true), ms);
+}
+
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); toast('Link disalin.'); }
   catch (_) { toast('Gagal menyalin.'); }
@@ -57,17 +73,37 @@ function renderList(docs) {
     list.appendChild(row);
   }
   list.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => copy(b.dataset.copy)));
-  list.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => del(b.dataset.del)));
+  list.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => del(b.dataset.del, b.closest('.doc-row'))));
 }
 
-async function del(id) {
-  if (!confirm('Hapus dokumen ini? Ga bisa dibalikin.')) return;
-  try {
-    await api('DELETE', `/api/docs/${id}`);
-    toast('Dokumen dihapus.');
-    load();
-  } catch (e) { toast(e.message); }
+// Hapus = langsung ilang + bisa di-Urungkan beberapa detik; DELETE ke server
+// baru jalan setelah jendela undo lewat. Nol dialog "Are you sure?".
+let pendingDel = null; // { id, row, timer }
+
+function commitPendingDelete() {
+  if (!pendingDel) return;
+  const { id, timer } = pendingDel;
+  clearTimeout(timer);
+  pendingDel = null;
+  fetch(`/api/docs/${id}`, { method: 'DELETE', keepalive: true }).catch(() => load());
 }
+
+function del(id, row) {
+  commitPendingDelete(); // maksimal satu pending; yang lama di-commit dulu
+  row.hidden = true;
+  pendingDel = { id, row, timer: setTimeout(commitPendingDelete, 6000) };
+  toastAction('Dokumen dihapus.', 'Urungkan', () => {
+    if (!pendingDel) return;
+    clearTimeout(pendingDel.timer);
+    pendingDel.row.hidden = false;
+    pendingDel = null;
+  });
+}
+
+// Tab ditutup sebelum jendela undo lewat → commit lewat fetch keepalive.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') commitPendingDelete();
+});
 
 async function load() {
   try {

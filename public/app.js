@@ -15,6 +15,8 @@ let me = null;            // user login (atau null)
 let docId = null;         // id dokumen kalau lagi edit / udah disave
 let docSlug = null;       // custom URL (slug), kalau ada
 let docHasPasscode = false;
+let lastSaved = null;     // konten terakhir yang kesimpen ke server (mode edit)
+let saveTimer = null;
 
 function canonicalUrl() {
   return location.origin + (docSlug ? '/' + docSlug : '/d/' + docId);
@@ -130,8 +132,8 @@ async function loadMe() {
     me = data.user;
   } catch (_) { me = null; }
   renderAccount();
-  // Tombol utama: "Save" kalau login, "Share →" kalau anon.
-  $('primaryBtn').textContent = me ? (docId ? 'Save' : 'Save →') : 'Share →';
+  // Satu tombol satu makna: Share. Nyimpen udah otomatis (auto-save) buat dokumen owned.
+  $('primaryBtn').textContent = 'Share →';
 }
 
 function renderAccount() {
@@ -176,9 +178,9 @@ function schedulePreview() {
 async function primaryAction() {
   const content = editor.value.trim();
   if (!content) return toast('Markdown masih kosong.');
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   const btn = $('primaryBtn');
   btn.disabled = true;
-  const old = btn.textContent;
   btn.textContent = 'Nyimpen...';
   try {
     let data;
@@ -195,12 +197,13 @@ async function primaryAction() {
         }
       }
     }
+    if (me && docId) { lastSaved = editor.value; setSaveInd('saved'); }
     openShareModal();
   } catch (e) {
     toast(e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = me ? (docId ? 'Save' : 'Save →') : old;
+    btn.textContent = 'Share →';
   }
 }
 
@@ -220,6 +223,13 @@ function openShareModal() {
   }
   $('modal').hidden = false;
   $('shareUrl').select();
+  // Peak moment: link langsung kesalin — tinggal paste. Gagal (izin clipboard) ya diem,
+  // fallback tombol Copy tetap ada.
+  navigator.clipboard.writeText(url).then(() => {
+    const b = $('copyUrl');
+    b.textContent = 'Disalin ✓';
+    setTimeout(() => (b.textContent = 'Copy'), 2200);
+  }, () => {});
 }
 
 async function saveSlug() {
@@ -290,6 +300,8 @@ async function loadExisting(id) {
   docId = doc.id;
   docSlug = doc.slug || null;
   docHasPasscode = doc.has_passcode;
+  lastSaved = doc.content;
+  setSaveInd('saved'); // kasih tau auto-save aktif
   if (doc.theme && THEMES[doc.theme]) { currentTheme = doc.theme; themeSel.value = doc.theme; applyTheme(doc.theme); }
   if (doc.font && FONTS[doc.font]) { currentFont = doc.font; fontSel.value = doc.font; applyFont(doc.font); }
 }
@@ -309,6 +321,58 @@ function toast(msg) {
   el.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.hidden = true), 2400);
+}
+
+// Toast dengan tombol aksi (dipakai buat "Urungkan").
+function toastAction(msg, label, onAction, ms = 6000) {
+  const el = $('toast');
+  el.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo';
+  btn.type = 'button';
+  btn.textContent = label;
+  btn.addEventListener('click', () => { el.hidden = true; onAction(); });
+  el.append(span, btn);
+  el.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.hidden = true), ms);
+}
+
+// ---- Auto-save (dokumen owned) ----
+function setSaveInd(state) {
+  const el = $('saveInd');
+  el.hidden = false;
+  el.classList.toggle('err', state === 'error');
+  el.textContent = state === 'saving' ? 'Nyimpen…'
+    : state === 'saved' ? 'Tersimpan ✓'
+    : 'Gagal nyimpen';
+}
+
+async function autoSave() {
+  if (!(me && docId)) return;
+  const content = editor.value;
+  if (!content.trim() || content === lastSaved) return;
+  setSaveInd('saving');
+  try {
+    // fetch langsung (bukan api()) biar bisa keepalive — kepake pas tab ditutup.
+    const r = await fetch(`/api/docs/${docId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, theme: currentTheme, font: currentFont }),
+      keepalive: true,
+    });
+    if (!r.ok) throw new Error();
+    lastSaved = content;
+    setSaveInd('saved');
+  } catch (_) { setSaveInd('error'); }
+}
+
+function scheduleAutoSave() {
+  if (!(me && docId)) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(autoSave, 1200);
 }
 
 // ---- Image upload (R2) ----
@@ -391,12 +455,33 @@ editor.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); editor.classList.add('drag-over'); }
 });
 editor.addEventListener('dragleave', () => editor.classList.remove('drag-over'));
+// Drop file .md/.txt → langsung dimuat ke editor (bisa di-Urungkan).
+const TEXT_FILE = (f) => /\.(md|markdown|txt)$/i.test(f.name || '') || f.type === 'text/plain' || f.type === 'text/markdown';
+function loadTextFile(file) {
+  const prev = editor.value;
+  const reader = new FileReader();
+  reader.onload = () => {
+    editor.value = String(reader.result);
+    schedulePreview();
+    scheduleAutoSave();
+    toastAction(`"${file.name}" dimuat.`, 'Urungkan', () => {
+      editor.value = prev;
+      schedulePreview();
+      scheduleAutoSave();
+    });
+  };
+  reader.readAsText(file);
+}
+
 editor.addEventListener('drop', (e) => {
   const files = e.dataTransfer?.files;
   if (!files || !files.length) return;
   e.preventDefault();
   editor.classList.remove('drag-over');
-  uploadImages([...files]);
+  const list = [...files];
+  const textFile = list.find(TEXT_FILE);
+  if (textFile) loadTextFile(textFile);
+  uploadImages(list);
 });
 
 // Tombol toolbar -> file picker.
@@ -411,9 +496,10 @@ themeSel.addEventListener('change', () => {
   applyTheme(themeSel.value);
   // Mermaid ga ikut re-color otomatis; render ulang preview biar nyocokin tema.
   if (hasMermaid()) renderPreview();
+  scheduleAutoSave();
 });
-fontSel.addEventListener('change', () => applyFont(fontSel.value));
-editor.addEventListener('input', schedulePreview);
+fontSel.addEventListener('change', () => { applyFont(fontSel.value); scheduleAutoSave(); });
+editor.addEventListener('input', () => { schedulePreview(); scheduleAutoSave(); });
 $('primaryBtn').addEventListener('click', primaryAction);
 $('copyMd').addEventListener('click', () => copy(editor.value, 'Markdown disalin.'));
 $('copyUrl').addEventListener('click', () => copy($('shareUrl').value, 'Link disalin.'));
@@ -449,6 +535,29 @@ editor.addEventListener('keydown', (e) => {
     editor.value = editor.value.slice(0, s) + '  ' + editor.value.slice(en);
     editor.selectionStart = editor.selectionEnd = s + 2;
     schedulePreview();
+    scheduleAutoSave();
+  }
+});
+
+// Cmd/Ctrl+S = simpen sekarang, Cmd/Ctrl+Enter = share.
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  if (e.key === 's') {
+    e.preventDefault();
+    if (me && docId) { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } autoSave(); }
+    else primaryAction();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    primaryAction();
+  }
+});
+
+// Tab ditutup / pindah app → flush save yang masih ngantri (fetch keepalive).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    autoSave();
   }
 });
 
@@ -462,7 +571,6 @@ editor.addEventListener('keydown', (e) => {
   if (id && me) {
     try {
       await loadExisting(id);
-      $('primaryBtn').textContent = 'Save';
     } catch (_) {
       toast('Dokumen ga ketemu atau bukan punya lo.');
       editor.value = localStorage.getItem('md.content') || SAMPLE;
